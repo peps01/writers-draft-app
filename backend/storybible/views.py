@@ -2,6 +2,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
+from django.http import FileResponse
 from rest_framework import viewsets, status
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.pagination import PageNumberPagination
@@ -20,6 +21,7 @@ from .serializers import (
     MessageSerializer,
 )
 from .ai_service import get_ai_response, AIServiceNotConfigured, AIServiceError
+from .export import generate_epub
 
 
 class ProjectViewSet(viewsets.ModelViewSet):
@@ -31,6 +33,32 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
+
+    @action(detail=True, methods=['post'], url_path='export/epub')
+    def export_epub(self, request, pk=None):
+        project = self.get_object()
+        scene_ids = request.data.get('scene_ids')
+        if scene_ids:
+            scenes = Scene.objects.filter(
+                project=project, id__in=scene_ids
+            ).order_by('order')
+        else:
+            scenes = project.scenes.all().order_by('order')
+
+        if not scenes:
+            return Response(
+                {'error': 'No scenes to export.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        buf = generate_epub(project, request.user, scenes)
+        filename = f'{project.title}.epub'
+        return FileResponse(
+            buf,
+            as_attachment=True,
+            filename=filename,
+            content_type='application/epub+zip',
+        )
 
 
 class CharacterViewSet(viewsets.ModelViewSet):

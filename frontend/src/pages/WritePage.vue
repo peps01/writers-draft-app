@@ -1,8 +1,9 @@
 <template>
   <q-layout>
     <q-page-container>
-      <q-page class="q-pa-md">
+      <q-page class="q-pa-md" :style="{ '--editor-font-size': fontSize }">
         <q-btn
+          v-if="!fullscreen"
           flat
           icon="arrow_back"
           label="Back to Project"
@@ -13,7 +14,7 @@
 
         <div class="row" style="height: calc(100vh - 120px)">
           <!-- Left Panel: Scene Board -->
-          <div class="col-4 col-sm-3 q-pr-md" style="display: flex; flex-direction: column">
+          <div v-if="!fullscreen" class="col-4 col-sm-3 q-pr-md" style="display: flex; flex-direction: column">
             <q-btn
               label="New Scene"
               color="primary"
@@ -103,7 +104,7 @@
           </div>
 
           <!-- Right Panel: Editor -->
-          <div class="col-8 col-sm-9" style="display: flex; flex-direction: column">
+          <div :class="fullscreen ? 'col-12' : 'col-8 col-sm-9'" style="display: flex; flex-direction: column">
             <template v-if="!activeScene">
               <div class="text-center text-grey q-mt-xl">
                 <q-icon name="edit_note" size="64px" color="grey-4" />
@@ -160,20 +161,63 @@
                     class="q-ml-xs"
                     @click="openAiDrawer"
                   />
+                  <q-btn
+                    flat
+                    dense
+                    round
+                    icon="download"
+                    size="sm"
+                    class="q-ml-xs"
+                    @click="showExportDialog = true"
+                  />
+                  <q-btn
+                    flat
+                    dense
+                    round
+                    :icon="fullscreen ? 'fullscreen_exit' : 'fullscreen'"
+                    size="sm"
+                    class="q-ml-xs"
+                    @click="toggleFullscreen"
+                  />
                 </div>
+              </div>
+
+              <!-- Toolbar: formatting + font size -->
+              <div v-if="fullscreen" class="row items-center q-mb-sm q-gutter-xs">
+                <q-btn flat dense icon="format_bold" size="sm" @click="wrapBold" title="Bold (Ctrl+B)">
+                  <q-tooltip>Bold</q-tooltip>
+                </q-btn>
+                <q-btn flat dense icon="format_italic" size="sm" @click="wrapItalic" title="Italic (Ctrl+I)">
+                  <q-tooltip>Italic</q-tooltip>
+                </q-btn>
+                <q-separator vertical class="q-mx-xs" />
+                <q-btn-toggle
+                  v-model="fontSize"
+                  flat
+                  dense
+                  no-caps
+                  size="sm"
+                  :options="[
+                    { label: 'S', value: '0.9rem', tooltip: 'Small' },
+                    { label: 'M', value: '1.1rem', tooltip: 'Normal' },
+                    { label: 'L', value: '1.3rem', tooltip: 'Large' },
+                    { label: 'XL', value: '1.5rem', tooltip: 'Extra Large' },
+                  ]"
+                />
               </div>
 
               <q-input
                 v-model="contentDraft"
                 type="textarea"
+                ref="editorRef"
                 placeholder="Start writing..."
-                class="col q-mb-sm editor-textarea"
+                :class="['q-mb-sm editor-textarea', fullscreen ? 'fullscreen-textarea' : 'col']"
                 outlined
                 hide-bottom-space
                 @update:model-value="onContentChange"
               />
 
-              <div class="row q-gutter-md q-mt-sm items-start">
+              <div v-if="!fullscreen" class="row q-gutter-md q-mt-sm items-start">
                 <q-select
                   v-model="selectedCharacters"
                   :options="characterOptions"
@@ -227,7 +271,7 @@
               </div>
 
               <div
-                v-if="characterOptions.length === 0 && placeOptions.length === 0 && timelineEventOptions.length === 0"
+                v-if="!fullscreen && characterOptions.length === 0 && placeOptions.length === 0 && timelineEventOptions.length === 0"
                 class="text-caption text-grey q-mt-xs"
               >
                 No characters, places, or timeline events yet.
@@ -305,6 +349,12 @@
             </q-card-actions>
           </q-card>
         </q-dialog>
+      <ExportDialog
+        v-model="showExportDialog"
+        :project-id="projectId"
+        :project-title="activeScene?.title || projectId"
+        :scenes="scenesStore.scenes"
+      />
       </q-page>
     </q-page-container>
 
@@ -503,6 +553,7 @@ import { useRoute } from 'vue-router'
 import { useScenesStore } from '@/stores/scenes'
 import { useSceneVersionsStore } from '@/stores/sceneVersions'
 import { useConversationsStore } from '@/stores/conversations'
+import ExportDialog from '@/components/ExportDialog.vue'
 import { useCharactersStore } from '@/stores/characters'
 import { usePlacesStore } from '@/stores/places'
 import { useTimelineEventsStore } from '@/stores/timelineEvents'
@@ -517,6 +568,92 @@ const conversationsStore = useConversationsStore()
 const charactersStore = useCharactersStore()
 const placesStore = usePlacesStore()
 const timelineEventsStore = useTimelineEventsStore()
+
+// ---- Fullscreen, font size, markdown formatting ----
+const fullscreen = ref(false)
+const fontSize = ref(localStorage.getItem('wda_font_size') || '1.1rem')
+const editorRef = ref(null)
+
+watch(fontSize, (val) => {
+  localStorage.setItem('wda_font_size', val)
+})
+
+function toggleFullscreen() {
+  fullscreen.value = !fullscreen.value
+}
+
+function onKeydown(e) {
+  if (e.key === 'Escape' && fullscreen.value) {
+    fullscreen.value = false
+  }
+  if (e.key === 'b' && (e.ctrlKey || e.metaKey) && fullscreen.value) {
+    e.preventDefault()
+    wrapBold()
+  }
+  if (e.key === 'i' && (e.ctrlKey || e.metaKey) && fullscreen.value) {
+    e.preventDefault()
+    wrapItalic()
+  }
+}
+
+function getTextarea() {
+  const ta = document.querySelector('.editor-textarea textarea, .fullscreen-textarea textarea')
+  return ta
+}
+
+function wrapBold() {
+  const ta = getTextarea()
+  if (!ta) return
+  const start = ta.selectionStart
+  const end = ta.selectionEnd
+  const val = contentDraft.value
+  if (start === end) {
+    const wrapped = val.substring(0, start) + '****' + val.substring(end)
+    contentDraft.value = wrapped
+    onContentChange()
+    nextTick(() => {
+      ta.focus()
+      ta.setSelectionRange(start + 2, start + 2, 'none')
+    })
+    return
+  }
+  const selected = val.substring(start, end)
+  const wrapped = val.substring(0, start) + '**' + selected + '**' + val.substring(end)
+  contentDraft.value = wrapped
+  onContentChange()
+  nextTick(() => {
+    ta.focus()
+    ta.setSelectionRange(end + 4, end + 4, 'none')
+  })
+}
+
+function wrapItalic() {
+  const ta = getTextarea()
+  if (!ta) return
+  const start = ta.selectionStart
+  const end = ta.selectionEnd
+  const val = contentDraft.value
+  if (start === end) {
+    const wrapped = val.substring(0, start) + '**' + val.substring(end)
+    contentDraft.value = wrapped
+    onContentChange()
+    nextTick(() => {
+      ta.focus()
+      ta.setSelectionRange(start + 1, start + 1, 'none')
+    })
+    return
+  }
+  const selected = val.substring(start, end)
+  const wrapped = val.substring(0, start) + '*' + selected + '*' + val.substring(end)
+  contentDraft.value = wrapped
+  onContentChange()
+  nextTick(() => {
+    ta.focus()
+    ta.setSelectionRange(end + 2, end + 2, 'none')
+  })
+}
+
+
 
 const activeScene = computed(() => {
   if (scenesStore.activeSceneId === null) return null
@@ -548,6 +685,7 @@ onMounted(async () => {
     placesStore.fetchPlaces(projectId),
     timelineEventsStore.fetchTimelineEvents(projectId),
   ])
+  document.addEventListener('keydown', onKeydown)
 })
 
 // ---- Scene list drag reorder (SortableJS) ----
@@ -596,6 +734,9 @@ watch(
 )
 
 onBeforeUnmount(destroySortable)
+onBeforeUnmount(() => {
+  document.removeEventListener('keydown', onKeydown)
+})
 
 // ---- Create scene ----
 async function handleCreateScene() {
@@ -778,6 +919,7 @@ const showAiDrawer = ref(false)
 const messageDraft = ref('')
 const messageListRef = ref(null)
 const showFreeTierWarning = ref(false)
+const showExportDialog = ref(false)
 
 function openAiDrawer() {
   showHistoryDrawer.value = false
@@ -867,7 +1009,15 @@ function relativeTime(dateStr) {
 
 .editor-textarea :deep(textarea) {
   min-height: 300px;
-  font-size: 1.1rem;
+  font-size: var(--editor-font-size, 1.1rem);
+  line-height: 1.7;
+  font-family: 'Georgia', serif;
+  resize: vertical;
+}
+
+.fullscreen-textarea :deep(textarea) {
+  min-height: calc(100vh - 280px);
+  font-size: var(--editor-font-size, 1.1rem);
   line-height: 1.7;
   font-family: 'Georgia', serif;
   resize: vertical;

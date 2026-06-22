@@ -58,7 +58,29 @@
                 </q-card-section>
               </q-card>
             </div>
+
+            <div class="col-12 col-sm-6 col-md-4">
+              <q-card
+                flat
+                bordered
+                class="cursor-pointer"
+                @click="showExportDialog = true"
+              >
+                <q-card-section class="text-center">
+                  <q-icon name="download" size="xl" color="primary" />
+                  <div class="text-h6 q-mt-sm">Export EPUB</div>
+                  <div class="text-caption text-grey">Download your manuscript as an ebook</div>
+                </q-card-section>
+              </q-card>
+            </div>
           </div>
+
+          <ExportDialog
+            v-model="showExportDialog"
+            :project-id="project.id"
+            :project-title="project.title"
+            :scenes="scenes"
+          />
         </div>
       </q-page>
     </q-page-container>
@@ -69,14 +91,19 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useProjectsStore } from '@/stores/projects'
+import { useScenesStore } from '@/stores/scenes'
+import ExportDialog from '@/components/ExportDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
 const store = useProjectsStore()
+const scenesStore = useScenesStore()
 
 const project = ref(null)
 const fetching = ref(true)
 const notFound = ref(false)
+const showExportDialog = ref(false)
+const scenes = ref([])
 
 function goToStoryBible() {
   router.push(`/projects/${project.value.id}/story-bible`)
@@ -89,6 +116,8 @@ function goToWrite() {
 onMounted(async () => {
   try {
     project.value = await store.fetchProject(route.params.id)
+    await scenesStore.fetchScenes(route.params.id)
+    scenes.value = scenesStore.scenes
   } catch (err) {
     if (err.response?.status === 404) {
       notFound.value = true
