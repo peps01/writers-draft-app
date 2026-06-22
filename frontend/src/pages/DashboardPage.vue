@@ -4,7 +4,32 @@
       <q-page class="q-pa-md">
         <div class="row items-center justify-between q-mb-md">
           <div class="text-h5">My Projects</div>
-          <q-btn label="New Project" color="primary" icon="add" @click="showCreateDialog = true" no-caps />
+          <div class="row items-center q-gutter-sm">
+            <span v-if="authStore.user" class="text-grey text-caption">{{ authStore.user.username }}</span>
+            <q-btn
+              flat
+              dense
+              icon="settings"
+              label="Settings"
+              no-caps
+              to="/settings"
+            />
+            <q-btn
+              flat
+              dense
+              icon="logout"
+              label="Logout"
+              no-caps
+              @click="handleLogout"
+            />
+            <q-btn
+              label="New Project"
+              color="primary"
+              icon="add"
+              @click="showCreateDialog = true"
+              no-caps
+            />
+          </div>
         </div>
 
         <div v-if="store.loading" class="row q-col-gutter-md">
@@ -26,7 +51,13 @@
         <div v-else-if="store.projects.length === 0" class="text-center q-mt-xl">
           <div class="text-h6 q-mb-sm">No projects yet</div>
           <div class="text-grey q-mb-md">Create your first project to get started.</div>
-          <q-btn label="Create your first project" color="primary" icon="add" @click="showCreateDialog = true" no-caps />
+          <q-btn
+            label="Create your first project"
+            color="primary"
+            icon="add"
+            @click="showCreateDialog = true"
+            no-caps
+          />
         </div>
 
         <div v-else class="row q-col-gutter-md">
@@ -48,7 +79,9 @@
                     </q-menu>
                   </q-btn>
                 </div>
-                <div class="text-caption text-grey">Updated {{ relativeTime(project.updated_at) }}</div>
+                <div class="text-caption text-grey">
+                  Updated {{ relativeTime(project.updated_at) }}
+                </div>
               </q-card-section>
             </q-card>
           </div>
@@ -60,11 +93,24 @@
               <div class="text-h6">New Project</div>
             </q-card-section>
             <q-card-section>
-              <q-input v-model="createTitle" label="Project title" autofocus :error="!!createError" :error-message="createError" @keyup.enter="submitCreate" />
+              <q-input
+                v-model="createTitle"
+                label="Project title"
+                autofocus
+                :error="!!createError"
+                :error-message="createError"
+                @keyup.enter="submitCreate"
+              />
             </q-card-section>
             <q-card-actions align="right">
               <q-btn flat label="Cancel" v-close-popup no-caps />
-              <q-btn color="primary" label="Create" :loading="creating" no-caps @click="submitCreate" />
+              <q-btn
+                color="primary"
+                label="Create"
+                :loading="creating"
+                no-caps
+                @click="submitCreate"
+              />
             </q-card-actions>
           </q-card>
         </q-dialog>
@@ -75,11 +121,24 @@
               <div class="text-h6">Rename Project</div>
             </q-card-section>
             <q-card-section>
-              <q-input v-model="renameTitle" label="Project title" autofocus :error="!!renameError" :error-message="renameError" @keyup.enter="submitRename" />
+              <q-input
+                v-model="renameTitle"
+                label="Project title"
+                autofocus
+                :error="!!renameError"
+                :error-message="renameError"
+                @keyup.enter="submitRename"
+              />
             </q-card-section>
             <q-card-actions align="right">
               <q-btn flat label="Cancel" v-close-popup no-caps />
-              <q-btn color="primary" label="Save" :loading="renaming" no-caps @click="submitRename" />
+              <q-btn
+                color="primary"
+                label="Save"
+                :loading="renaming"
+                no-caps
+                @click="submitRename"
+              />
             </q-card-actions>
           </q-card>
         </q-dialog>
@@ -90,12 +149,21 @@
               <div class="text-h6">Delete Project</div>
             </q-card-section>
             <q-card-section>
-              <p>Are you sure you want to delete '<strong>{{ deleteTarget?.title }}</strong>'? This cannot be undone.</p>
+              <p>
+                Are you sure you want to delete '<strong>{{ deleteTarget?.title }}</strong
+                >'? This cannot be undone.
+              </p>
               <div v-if="deleteError" class="text-negative">{{ deleteError }}</div>
             </q-card-section>
             <q-card-actions align="right">
               <q-btn flat label="Cancel" v-close-popup no-caps />
-              <q-btn color="negative" label="Delete" :loading="deleting" no-caps @click="submitDelete" />
+              <q-btn
+                color="negative"
+                label="Delete"
+                :loading="deleting"
+                no-caps
+                @click="submitDelete"
+              />
             </q-card-actions>
           </q-card>
         </q-dialog>
@@ -108,8 +176,11 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useProjectsStore } from '@/stores/projects'
+import { useAuthStore } from '@/stores/auth'
+
 const router = useRouter()
 const store = useProjectsStore()
+const authStore = useAuthStore()
 
 onMounted(() => {
   store.fetchProjects()
@@ -133,6 +204,14 @@ function goToProject(id) {
   router.push(`/projects/${id}`)
 }
 
+async function handleLogout() {
+  try {
+    await authStore.logout()
+    router.push('/login')
+  } catch {
+    // error is on store
+  }
+}
 
 const showCreateDialog = ref(false)
 const createTitle = ref('')

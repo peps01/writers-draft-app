@@ -1,11 +1,7 @@
 const routes = [
   {
     path: '/',
-    component: () => import('@/layouts/MainLayout.vue'),
-    children: [
-      { path: '', component: () => import('@/pages/IndexPage.vue') },
-      { path: 'second', component: () => import('@/pages/SecondPage.vue') },
-    ],
+    redirect: '/dashboard',
   },
 
   {
@@ -27,8 +23,26 @@ const routes = [
   },
 
   {
+    path: '/settings',
+    component: () => import('@/pages/SettingsPage.vue'),
+    meta: { requiresAuth: true },
+  },
+
+  {
     path: '/projects/:id',
     component: () => import('@/pages/ProjectDetailPage.vue'),
+    meta: { requiresAuth: true },
+  },
+
+  {
+    path: '/projects/:id/story-bible',
+    component: () => import('@/pages/StoryBiblePage.vue'),
+    meta: { requiresAuth: true },
+  },
+
+  {
+    path: '/projects/:id/write',
+    component: () => import('@/pages/WritePage.vue'),
     meta: { requiresAuth: true },
   },
 

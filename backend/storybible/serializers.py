@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Project, Character, Place, TimelineEvent, Scene, Conversation, Message
+from .models import Project, Character, Place, TimelineEvent, Scene, SceneVersion, Conversation, Message
 
 
 class ProjectSerializer(serializers.ModelSerializer):
@@ -44,6 +44,15 @@ class SceneSerializer(serializers.ModelSerializer):
         self.fields['characters'].child_relation.queryset = qs
         qs = Place.objects.filter(project_id=project_id) if project_id is not None else Place.objects.none()
         self.fields['places'].child_relation.queryset = qs
+        qs = TimelineEvent.objects.filter(project_id=project_id) if project_id is not None else TimelineEvent.objects.none()
+        self.fields['timeline_events'].child_relation.queryset = qs
+
+
+class SceneVersionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SceneVersion
+        fields = ['id', 'content', 'created_at']
+        read_only_fields = fields
 
 
 class ConversationSerializer(serializers.ModelSerializer):

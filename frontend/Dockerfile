@@ -5,6 +5,6 @@ WORKDIR /app
 RUN npm install -g @quasar/cli
 
 COPY . .
-RUN npm install
+RUN npm install --legacy-peer-deps
 
 EXPOSE 9000

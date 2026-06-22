@@ -38,7 +38,7 @@ services:
       context: ./frontend
     container_name: wda_frontend
     restart: unless-stopped
-    command: npx quasar dev -p 9000
+    command: sh -c "npm install --legacy-peer-deps && npx quasar dev -p 9000"
     volumes:
       - ./frontend:/app
       - /app/node_modules

@@ -45,7 +45,8 @@ export const useProjectsStore = defineStore('projects', () => {
       projects.value.push(data)
       return data
     } catch (err) {
-      error.value = err.response?.data?.title?.[0] || err.response?.data?.detail || 'Failed to create project.'
+      error.value =
+        err.response?.data?.title?.[0] || err.response?.data?.detail || 'Failed to create project.'
       throw err
     }
   }
@@ -60,7 +61,8 @@ export const useProjectsStore = defineStore('projects', () => {
       }
       return data
     } catch (err) {
-      error.value = err.response?.data?.title?.[0] || err.response?.data?.detail || 'Failed to rename project.'
+      error.value =
+        err.response?.data?.title?.[0] || err.response?.data?.detail || 'Failed to rename project.'
       throw err
     }
   }
@@ -80,5 +82,15 @@ export const useProjectsStore = defineStore('projects', () => {
     error.value = null
   }
 
-  return { projects, loading, error, fetchProjects, fetchProject, createProject, renameProject, deleteProject, clearError }
+  return {
+    projects,
+    loading,
+    error,
+    fetchProjects,
+    fetchProject,
+    createProject,
+    renameProject,
+    deleteProject,
+    clearError,
+  }
 })

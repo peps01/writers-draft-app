@@ -14,6 +14,11 @@ projects_router.register('timeline-events', views.TimelineEventViewSet, basename
 projects_router.register('scenes', views.SceneViewSet, basename='project-scenes')
 projects_router.register('conversations', views.ConversationViewSet, basename='project-conversations')
 
+scenes_router = routers.NestedSimpleRouter(
+    projects_router, 'scenes', lookup='scene'
+)
+scenes_router.register('versions', views.SceneVersionViewSet, basename='project-scene-versions')
+
 conversations_router = routers.NestedSimpleRouter(
     projects_router, 'conversations', lookup='conversation'
 )
@@ -24,11 +29,13 @@ auth_urls = [
     path('auth/logout/', views.logout_view, name='auth-logout'),
     path('auth/user/', views.user_view, name='auth-user'),
     path('auth/register/', views.register_view, name='auth-register'),
+    path('auth/profile/', views.profile_view, name='auth-profile'),
 ]
 
 urlpatterns = [
     *auth_urls,
     path('', include(router.urls)),
     path('', include(projects_router.urls)),
+    path('', include(scenes_router.urls)),
     path('', include(conversations_router.urls)),
 ]

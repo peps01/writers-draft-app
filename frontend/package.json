@@ -15,9 +15,10 @@
   },
   "dependencies": {
     "@quasar/extras": "^2.0.0",
-    "axios": "^1.7.0",
-    "pinia": "^2.2.0",
+    "axios": "^1.18.0",
+    "pinia": "^2.3.1",
     "quasar": "^2.20.0",
+    "sortablejs": "^1.14.0",
     "vue": "^3.5.22",
     "vue-router": "^5.0.6"
   },
