@@ -1,3 +1,8 @@
+from datetime import date, timedelta
+from collections import defaultdict
+
+import google.generativeai as genai
+
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
@@ -20,7 +25,7 @@ from .serializers import (
     ConversationSerializer,
     MessageSerializer,
 )
-from .ai_service import get_ai_response, AIServiceNotConfigured, AIServiceError
+from .ai_service import get_ai_response, AIServiceNotConfigured, AIServiceError, resolve_key, GEMINI_MODEL
 from .export import generate_epub
 
 
@@ -59,6 +64,89 @@ class ProjectViewSet(viewsets.ModelViewSet):
             filename=filename,
             content_type='application/epub+zip',
         )
+
+    @action(detail=True, methods=['get'], url_path='statistics')
+    def statistics(self, request, pk=None):
+        project = self.get_object()
+        scenes = list(project.scenes.all())
+
+        total_scenes = len(scenes)
+        total_words = sum(len(s.content.split()) for s in scenes)
+
+        if total_scenes > 0:
+            longest = max(scenes, key=lambda s: len(s.content.split()))
+            shortest = min(scenes, key=lambda s: len(s.content.split()))
+            longest_scene = {
+                'id': longest.id,
+                'title': longest.title or 'Untitled',
+                'word_count': len(longest.content.split()),
+            }
+            shortest_scene = {
+                'id': shortest.id,
+                'title': shortest.title or 'Untitled',
+                'word_count': len(shortest.content.split()),
+            }
+            avg_words = total_words // total_scenes
+        else:
+            longest_scene = None
+            shortest_scene = None
+            avg_words = 0
+
+        versions = SceneVersion.objects.filter(
+            scene__project=project
+        ).select_related('scene').order_by('scene_id', 'created_at')
+
+        scene_date_counts = defaultdict(dict)
+        for v in versions:
+            d = v.created_at.date()
+            wc = len(v.content.split())
+            scene_date_counts[v.scene_id][d] = wc
+
+        daily_deltas = defaultdict(int)
+        for scene_id, date_counts in scene_date_counts.items():
+            sorted_dates = sorted(date_counts.keys())
+            prev_count = 0
+            for d in sorted_dates:
+                count = date_counts[d]
+                delta = max(0, count - prev_count)
+                daily_deltas[d] += delta
+                prev_count = count
+
+        if versions:
+            first_date = versions.earliest('created_at').created_at.date()
+        else:
+            first_date = date.today()
+
+        all_daily = []
+        current = first_date
+        today = date.today()
+        while current <= today:
+            words = daily_deltas.get(current, 0)
+            all_daily.append({'date': current.isoformat(), 'words': words})
+            current += timedelta(days=1)
+
+        total_days_written = sum(1 for d in all_daily if d['words'] > 0)
+
+        streak = 0
+        idx = len(all_daily) - 1
+        if all_daily and all_daily[idx]['words'] == 0:
+            idx -= 1
+        while idx >= 0 and all_daily[idx]['words'] > 0:
+            streak += 1
+            idx -= 1
+
+        daily_words = all_daily[-90:]
+
+        return Response({
+            'total_words': total_words,
+            'total_scenes': total_scenes,
+            'average_words_per_scene': avg_words,
+            'longest_scene': longest_scene,
+            'shortest_scene': shortest_scene,
+            'daily_words': daily_words,
+            'writing_streak': streak,
+            'total_days_written': total_days_written,
+        })
 
 
 class CharacterViewSet(viewsets.ModelViewSet):
@@ -326,6 +414,8 @@ def register_view(request):
             'email': user.email,
             'has_gemini_key': bool(user.profile.gemini_api_key),
             'is_paid_tier': user.profile.is_paid_tier,
+            'daily_word_goal': user.profile.daily_word_goal,
+            'show_word_goal': user.profile.show_word_goal,
         },
         status=status.HTTP_201_CREATED,
     )
@@ -341,12 +431,16 @@ def logout_view(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def user_view(request):
+    key = request.user.profile.gemini_api_key
     return Response({
         'id': request.user.id,
         'username': request.user.username,
         'email': request.user.email,
-        'has_gemini_key': bool(request.user.profile.gemini_api_key),
+        'has_gemini_key': bool(key),
+        'gemini_api_key_preview': key[-4:] if key else None,
         'is_paid_tier': request.user.profile.is_paid_tier,
+        'daily_word_goal': request.user.profile.daily_word_goal,
+        'show_word_goal': request.user.profile.show_word_goal,
     })
 
 
@@ -354,20 +448,58 @@ def user_view(request):
 @permission_classes([IsAuthenticated])
 def profile_view(request):
     if request.method == 'GET':
+        key = request.user.profile.gemini_api_key
         return Response({
-            'gemini_api_key_set': bool(request.user.profile.gemini_api_key),
+            'gemini_api_key_set': bool(key),
+            'gemini_api_key_preview': key[-4:] if key else None,
             'is_paid_tier': request.user.profile.is_paid_tier,
+            'daily_word_goal': request.user.profile.daily_word_goal,
+            'show_word_goal': request.user.profile.show_word_goal,
         })
 
     # PATCH
     data = request.data
     if 'gemini_api_key' in data:
-        request.user.profile.gemini_api_key = data['gemini_api_key']
+        val = data['gemini_api_key']
+        request.user.profile.gemini_api_key = val
     if 'is_paid_tier' in data:
         request.user.profile.is_paid_tier = bool(data['is_paid_tier'])
+    if 'daily_word_goal' in data:
+        val = data['daily_word_goal']
+        request.user.profile.daily_word_goal = int(val) if val is not None else None
+    if 'show_word_goal' in data:
+        request.user.profile.show_word_goal = bool(data['show_word_goal'])
     request.user.profile.save()
 
+    key = request.user.profile.gemini_api_key
     return Response({
-        'gemini_api_key_set': bool(request.user.profile.gemini_api_key),
+        'gemini_api_key_set': bool(key),
+        'gemini_api_key_preview': key[-4:] if key else None,
         'is_paid_tier': request.user.profile.is_paid_tier,
+        'daily_word_goal': request.user.profile.daily_word_goal,
+        'show_word_goal': request.user.profile.show_word_goal,
     })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def test_key_view(request):
+    try:
+        key, is_paid = resolve_key(request.user)
+    except AIServiceNotConfigured:
+        return Response({'status': 'not_configured'})
+
+    using = 'custom' if request.user.profile.gemini_api_key else 'default'
+    genai.configure(api_key=key)
+    try:
+        model = genai.GenerativeModel(GEMINI_MODEL)
+        model.generate_content(
+            'Hello',
+            generation_config=genai.types.GenerationConfig(max_output_tokens=5),
+        )
+        return Response({'status': 'ok', 'using': using})
+    except Exception as e:
+        err = str(e).lower()
+        if any(x in err for x in ('quota', 'resource_exhausted', '429')):
+            return Response({'status': 'quota_exceeded', 'using': using})
+        return Response({'status': 'invalid_key', 'using': using})

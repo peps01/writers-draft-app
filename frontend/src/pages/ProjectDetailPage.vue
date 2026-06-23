@@ -73,6 +73,21 @@
                 </q-card-section>
               </q-card>
             </div>
+
+            <div class="col-12 col-sm-6 col-md-4">
+              <q-card
+                flat
+                bordered
+                class="cursor-pointer"
+                @click="goToStatistics"
+              >
+                <q-card-section class="text-center">
+                  <q-icon name="bar_chart" size="xl" color="primary" />
+                  <div class="text-h6 q-mt-sm">Statistics</div>
+                  <div class="text-caption text-grey">Track your writing progress</div>
+                </q-card-section>
+              </q-card>
+            </div>
           </div>
 
           <ExportDialog
@@ -111,6 +126,10 @@ function goToStoryBible() {
 
 function goToWrite() {
   router.push(`/projects/${project.value.id}/write`)
+}
+
+function goToStatistics() {
+  router.push(`/projects/${project.value.id}/statistics`)
 }
 
 onMounted(async () => {

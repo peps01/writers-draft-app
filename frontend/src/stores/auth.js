@@ -9,7 +9,10 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = computed(() => user.value !== null)
 
   const hasGeminiKey = computed(() => user.value?.has_gemini_key ?? false)
+  const geminiApiKeyPreview = computed(() => user.value?.gemini_api_key_preview ?? null)
   const isPaidTier = computed(() => user.value?.is_paid_tier ?? false)
+  const dailyWordGoal = computed(() => user.value?.daily_word_goal ?? null)
+  const showWordGoal = computed(() => user.value?.show_word_goal ?? false)
 
   async function login(username, password) {
     const { data } = await api.post('/auth/login/', { username, password })
@@ -38,24 +41,39 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function updateProfile(geminiApiKey, isPaidTier) {
+  async function updateProfile({ geminiApiKey, isPaidTier, showWordGoal, dailyWordGoal, includeKey = false } = {}) {
     const payload = {}
-    if (geminiApiKey !== undefined) {
+    if (includeKey && geminiApiKey !== undefined) {
       payload.gemini_api_key = geminiApiKey
     }
     if (isPaidTier !== undefined) {
       payload.is_paid_tier = isPaidTier
     }
+    if (dailyWordGoal !== undefined) {
+      payload.daily_word_goal = dailyWordGoal
+    }
+    if (showWordGoal !== undefined) {
+      payload.show_word_goal = showWordGoal
+    }
     const { data } = await api.patch('/auth/profile/', payload)
     if (user.value) {
       user.value.has_gemini_key = data.gemini_api_key_set
+      user.value.gemini_api_key_preview = data.gemini_api_key_preview
       user.value.is_paid_tier = data.is_paid_tier
+      user.value.daily_word_goal = data.daily_word_goal
+      user.value.show_word_goal = data.show_word_goal
     }
     return data
   }
 
+  async function testKey() {
+    const { data } = await api.post('/auth/profile/test-key/')
+    return data
+  }
+
   return {
-    user, loading, isAuthenticated, hasGeminiKey, isPaidTier,
-    login, register, logout, fetchCurrentUser, updateProfile,
+    user, loading, isAuthenticated, hasGeminiKey, geminiApiKeyPreview,
+    isPaidTier, dailyWordGoal, showWordGoal,
+    login, register, logout, fetchCurrentUser, updateProfile, testKey,
   }
 })

@@ -47,6 +47,12 @@ const routes = [
   },
 
   {
+    path: '/projects/:id/statistics',
+    component: () => import('@/pages/StatisticsPage.vue'),
+    meta: { requiresAuth: true },
+  },
+
+  {
     path: '/:catchAll(.*)*',
     component: () => import('@/pages/ErrorNotFound.vue'),
   },

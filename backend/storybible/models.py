@@ -101,6 +101,8 @@ class UserProfile(models.Model):
     )
     gemini_api_key = models.CharField(max_length=200, blank=True, default='')
     is_paid_tier = models.BooleanField(default=False)
+    daily_word_goal = models.PositiveIntegerField(null=True, blank=True, default=None)
+    show_word_goal = models.BooleanField(default=False)
 
     def __str__(self):
         return f'Profile for {self.user.username}'

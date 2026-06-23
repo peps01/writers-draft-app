@@ -1,7 +1,7 @@
 <template>
   <q-layout>
     <q-page-container>
-      <q-page class="q-pa-md" :style="{ '--editor-font-size': fontSize }">
+      <q-page class="q-pa-md">
         <q-btn
           v-if="!fullscreen"
           flat
@@ -104,7 +104,7 @@
           </div>
 
           <!-- Right Panel: Editor -->
-          <div :class="fullscreen ? 'col-12' : 'col-8 col-sm-9'" style="display: flex; flex-direction: column">
+          <div :class="fullscreen ? 'col-12' : 'col-8 col-sm-9'" style="display: flex; flex-direction: column; height: 100%; overflow: hidden">
             <template v-if="!activeScene">
               <div class="text-center text-grey q-mt-xl">
                 <q-icon name="edit_note" size="64px" color="grey-4" />
@@ -182,39 +182,31 @@
                 </div>
               </div>
 
-              <!-- Toolbar: formatting + font size -->
-              <div v-if="fullscreen" class="row items-center q-mb-sm q-gutter-xs">
-                <q-btn flat dense icon="format_bold" size="sm" @click="wrapBold" title="Bold (Ctrl+B)">
-                  <q-tooltip>Bold</q-tooltip>
-                </q-btn>
-                <q-btn flat dense icon="format_italic" size="sm" @click="wrapItalic" title="Italic (Ctrl+I)">
-                  <q-tooltip>Italic</q-tooltip>
-                </q-btn>
-                <q-separator vertical class="q-mx-xs" />
-                <q-btn-toggle
-                  v-model="fontSize"
-                  flat
-                  dense
-                  no-caps
-                  size="sm"
-                  :options="[
-                    { label: 'S', value: '0.9rem', tooltip: 'Small' },
-                    { label: 'M', value: '1.1rem', tooltip: 'Normal' },
-                    { label: 'L', value: '1.3rem', tooltip: 'Large' },
-                    { label: 'XL', value: '1.5rem', tooltip: 'Extra Large' },
-                  ]"
-                />
-              </div>
+              <EditorToolbar
+                :editor="editorRef"
+                :word-count="liveWordCount"
+                :show-find-replace="showFindReplace"
+                :font-size="fontSize"
+                :font-family="fontFamily"
+                @font-family-change="handleFontFamilyChange"
+                @font-size-change="handleFontSizeChange"
+                @toggle-find-replace="showFindReplace = !showFindReplace"
+              />
 
-              <q-input
-                v-model="contentDraft"
-                type="textarea"
-                ref="editorRef"
-                placeholder="Start writing..."
-                :class="['q-mb-sm editor-textarea', fullscreen ? 'fullscreen-textarea' : 'col']"
-                outlined
-                hide-bottom-space
-                @update:model-value="onContentChange"
+              <FindReplaceBar
+                v-if="showFindReplace"
+                :editor="editorRef"
+                @close="showFindReplace = false"
+              />
+
+              <RichTextEditor
+                ref="richEditorRef"
+                v-model="sceneContent"
+                :font-size="fontSize"
+                :font-family="fontFamily"
+                placeholder="Begin writing your scene..."
+                @word-count-update="liveWordCount = $event"
+                @ready="editorRef = $event"
               />
 
               <div v-if="!fullscreen" class="row q-gutter-md q-mt-sm items-start">
@@ -548,12 +540,15 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch, onBeforeUnmount, nextTick } from 'vue'
+import { ref, computed, onMounted, watch, onBeforeUnmount, nextTick, shallowRef } from 'vue'
 import { useRoute } from 'vue-router'
 import { useScenesStore } from '@/stores/scenes'
 import { useSceneVersionsStore } from '@/stores/sceneVersions'
 import { useConversationsStore } from '@/stores/conversations'
 import ExportDialog from '@/components/ExportDialog.vue'
+import EditorToolbar from '@/components/EditorToolbar.vue'
+import FindReplaceBar from '@/components/FindReplaceBar.vue'
+import RichTextEditor from '@/components/RichTextEditor.vue'
 import { useCharactersStore } from '@/stores/characters'
 import { usePlacesStore } from '@/stores/places'
 import { useTimelineEventsStore } from '@/stores/timelineEvents'
@@ -569,88 +564,49 @@ const charactersStore = useCharactersStore()
 const placesStore = usePlacesStore()
 const timelineEventsStore = useTimelineEventsStore()
 
-// ---- Fullscreen, font size, markdown formatting ----
+// ---- Editor state ----
 const fullscreen = ref(false)
 const fontSize = ref(localStorage.getItem('wda_font_size') || '1.1rem')
-const editorRef = ref(null)
+const fontFamily = ref(localStorage.getItem('wda_font_family') || 'serif')
+const showFindReplace = ref(false)
+const liveWordCount = ref(0)
+const editorRef = shallowRef(null)
+const richEditorRef = ref(null)
 
 watch(fontSize, (val) => {
   localStorage.setItem('wda_font_size', val)
 })
+
+watch(fontFamily, (val) => {
+  localStorage.setItem('wda_font_family', val)
+})
+
+function handleFontFamilyChange(val) {
+  fontFamily.value = val
+}
+
+function handleFontSizeChange(val) {
+  fontSize.value = val
+}
 
 function toggleFullscreen() {
   fullscreen.value = !fullscreen.value
 }
 
 function onKeydown(e) {
-  if (e.key === 'Escape' && fullscreen.value) {
-    fullscreen.value = false
+  if (e.key === 'Escape') {
+    if (showFindReplace.value) {
+      showFindReplace.value = false
+      return
+    }
+    if (fullscreen.value) {
+      fullscreen.value = false
+    }
   }
-  if (e.key === 'b' && (e.ctrlKey || e.metaKey) && fullscreen.value) {
+  if ((e.key === 'f' || e.key === 'F') && (e.ctrlKey || e.metaKey)) {
     e.preventDefault()
-    wrapBold()
+    showFindReplace.value = true
   }
-  if (e.key === 'i' && (e.ctrlKey || e.metaKey) && fullscreen.value) {
-    e.preventDefault()
-    wrapItalic()
-  }
-}
-
-function getTextarea() {
-  const ta = document.querySelector('.editor-textarea textarea, .fullscreen-textarea textarea')
-  return ta
-}
-
-function wrapBold() {
-  const ta = getTextarea()
-  if (!ta) return
-  const start = ta.selectionStart
-  const end = ta.selectionEnd
-  const val = contentDraft.value
-  if (start === end) {
-    const wrapped = val.substring(0, start) + '****' + val.substring(end)
-    contentDraft.value = wrapped
-    onContentChange()
-    nextTick(() => {
-      ta.focus()
-      ta.setSelectionRange(start + 2, start + 2, 'none')
-    })
-    return
-  }
-  const selected = val.substring(start, end)
-  const wrapped = val.substring(0, start) + '**' + selected + '**' + val.substring(end)
-  contentDraft.value = wrapped
-  onContentChange()
-  nextTick(() => {
-    ta.focus()
-    ta.setSelectionRange(end + 4, end + 4, 'none')
-  })
-}
-
-function wrapItalic() {
-  const ta = getTextarea()
-  if (!ta) return
-  const start = ta.selectionStart
-  const end = ta.selectionEnd
-  const val = contentDraft.value
-  if (start === end) {
-    const wrapped = val.substring(0, start) + '**' + val.substring(end)
-    contentDraft.value = wrapped
-    onContentChange()
-    nextTick(() => {
-      ta.focus()
-      ta.setSelectionRange(start + 1, start + 1, 'none')
-    })
-    return
-  }
-  const selected = val.substring(start, end)
-  const wrapped = val.substring(0, start) + '*' + selected + '*' + val.substring(end)
-  contentDraft.value = wrapped
-  onContentChange()
-  nextTick(() => {
-    ta.focus()
-    ta.setSelectionRange(end + 2, end + 2, 'none')
-  })
 }
 
 
@@ -794,25 +750,34 @@ function saveTitle() {
 }
 
 // ---- Content editing with debounced autosave ----
-const contentDraft = ref('')
+const sceneContent = ref('')
 let saveTimer = null
+let isExternalUpdate = false
 
 watch(activeScene, (scene) => {
+  if (saveTimer) {
+    clearTimeout(saveTimer)
+    saveTimer = null
+  }
   if (scene) {
-    contentDraft.value = scene.content
+    isExternalUpdate = true
+    sceneContent.value = scene.content
+    nextTick(() => { isExternalUpdate = false })
+    liveWordCount.value = 0
   } else {
-    contentDraft.value = ''
+    sceneContent.value = ''
   }
 }, { immediate: true })
 
-function onContentChange() {
+watch(sceneContent, (newVal) => {
+  if (isExternalUpdate) return
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(() => {
-    if (activeScene.value && contentDraft.value !== activeScene.value.content) {
-      scenesStore.updateSceneContent(projectId, activeScene.value.id, contentDraft.value)
+    if (activeScene.value && newVal !== activeScene.value.content) {
+      scenesStore.updateSceneContent(projectId, activeScene.value.id, newVal)
     }
   }, 2500)
-}
+})
 
 onBeforeUnmount(() => {
   if (saveTimer) clearTimeout(saveTimer)
@@ -1005,21 +970,5 @@ function relativeTime(dateStr) {
 .selected-scene {
   border-color: var(--q-primary);
   border-width: 2px;
-}
-
-.editor-textarea :deep(textarea) {
-  min-height: 300px;
-  font-size: var(--editor-font-size, 1.1rem);
-  line-height: 1.7;
-  font-family: 'Georgia', serif;
-  resize: vertical;
-}
-
-.fullscreen-textarea :deep(textarea) {
-  min-height: calc(100vh - 280px);
-  font-size: var(--editor-font-size, 1.1rem);
-  line-height: 1.7;
-  font-family: 'Georgia', serif;
-  resize: vertical;
 }
 </style>

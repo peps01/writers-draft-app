@@ -1,6 +1,17 @@
 import io
-import markdown
+import re
 from ebooklib import epub
+
+
+def content_to_html(content):
+    if not content:
+        return '<p></p>'
+    if content.strip().startswith('<'):
+        return content
+    content = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', content)
+    content = re.sub(r'\*(.+?)\*', r'<em>\1</em>', content)
+    paragraphs = content.split('\n\n')
+    return ''.join(f'<p>{p.strip()}</p>' for p in paragraphs if p.strip())
 
 
 def generate_epub(project, user, scenes):
@@ -29,7 +40,7 @@ def generate_epub(project, user, scenes):
     chapters = []
     for i, scene in enumerate(scenes):
         title = scene.title or f'Chapter {scene.order + 1}'
-        html_body = markdown.markdown(scene.content or '')
+        html_body = content_to_html(scene.content or '')
         chapter = epub.EpubHtml(
             title=title,
             file_name=f'chap_{i}.xhtml',

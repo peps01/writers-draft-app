@@ -1,6 +1,11 @@
+import re
+
 import google.generativeai as genai
 from django.conf import settings
+from google.generativeai.types import HarmCategory, HarmBlockThreshold
 from .models import Scene, Message
+
+GEMINI_MODEL = 'gemini-2.5-flash'
 
 
 class AIServiceNotConfigured(Exception):
@@ -11,7 +16,7 @@ class AIServiceError(Exception):
     pass
 
 
-def _resolve_key(user):
+def resolve_key(user):
     profile = user.profile
     if profile.gemini_api_key:
         return profile.gemini_api_key, profile.is_paid_tier
@@ -63,7 +68,8 @@ def _build_system_prompt(scene):
             parts.append(f"\n- {e.title}: {e.description}")
 
     if scene and scene.content:
-        parts.append(f"\n\nCURRENT SCENE CONTENT:\n{scene.content}")
+        plain = re.sub(r'<[^>]+>', '', scene.content or '')
+        parts.append(f"\n\nCURRENT SCENE CONTENT:\n{plain}")
     elif scene:
         parts.append("\n\nThe scene has no written content yet.")
 
@@ -93,7 +99,7 @@ def _build_history(conversation_id):
 
 
 def get_ai_response(user, scene_id, conversation_id, new_message_content):
-    key, is_free = _resolve_key(user)
+    key, is_free = resolve_key(user)
 
     scene = None
     if scene_id:
@@ -107,13 +113,19 @@ def get_ai_response(user, scene_id, conversation_id, new_message_content):
 
     genai.configure(api_key=key)
     model = genai.GenerativeModel(
-        model_name='gemini-2.5-flash',
+        model_name=GEMINI_MODEL,
         system_instruction=system_prompt,
     )
     chat = model.start_chat(history=conversation_history)
 
     try:
-        response = chat.send_message(new_message_content)
+        safety_settings = {
+            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+        }
+        response = chat.send_message(new_message_content, safety_settings=safety_settings)
     except Exception as e:
         raise AIServiceError(str(e)) from e
 
