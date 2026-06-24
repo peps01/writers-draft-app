@@ -41,7 +41,13 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function updateProfile({ geminiApiKey, isPaidTier, showWordGoal, dailyWordGoal, includeKey = false } = {}) {
+  async function updateProfile({
+    geminiApiKey,
+    isPaidTier,
+    showWordGoal,
+    dailyWordGoal,
+    includeKey = false,
+  } = {}) {
     const payload = {}
     if (includeKey && geminiApiKey !== undefined) {
       payload.gemini_api_key = geminiApiKey
@@ -72,8 +78,19 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   return {
-    user, loading, isAuthenticated, hasGeminiKey, geminiApiKeyPreview,
-    isPaidTier, dailyWordGoal, showWordGoal,
-    login, register, logout, fetchCurrentUser, updateProfile, testKey,
+    user,
+    loading,
+    isAuthenticated,
+    hasGeminiKey,
+    geminiApiKeyPreview,
+    isPaidTier,
+    dailyWordGoal,
+    showWordGoal,
+    login,
+    register,
+    logout,
+    fetchCurrentUser,
+    updateProfile,
+    testKey,
   }
 })

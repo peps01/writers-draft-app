@@ -4,15 +4,19 @@
     @update:model-value="$emit('update:modelValue', $event)"
     @before-hide="resetForm"
   >
-    <q-card style="min-width: 400px">
+    <q-card class="wda-card" style="min-width: 400px">
       <q-card-section>
-        <div class="text-h6">{{ entity ? 'Edit' : 'Add' }} {{ entityLabel }}</div>
+        <div class="text-h6" style="font-family: var(--wda-font-heading)">
+          {{ entity ? 'Edit' : 'Add' }} {{ entityLabel }}
+        </div>
       </q-card-section>
       <q-card-section>
         <q-input
           v-model="form.name"
           :label="nameLabel"
           autofocus
+          outlined
+          color="primary"
           :error="!!nameError"
           :error-message="nameError"
           @keyup.enter="submit"
@@ -22,13 +26,15 @@
           label="Description (optional)"
           type="textarea"
           :rows="4"
+          outlined
+          color="primary"
           class="q-mt-md"
         />
         <div v-if="errorText" class="text-negative q-mt-sm">{{ errorText }}</div>
       </q-card-section>
       <q-card-actions align="right">
         <q-btn flat label="Cancel" v-close-popup no-caps />
-        <q-btn color="primary" label="Save" :loading="saving" no-caps @click="submit" />
+        <q-btn unelevated color="primary" label="Save" :loading="saving" no-caps @click="submit" />
       </q-card-actions>
     </q-card>
   </q-dialog>

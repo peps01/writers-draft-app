@@ -1,20 +1,47 @@
 <template>
   <q-layout>
     <q-page-container>
-      <q-page class="q-pa-md" style="max-width: 700px; margin: 0 auto">
-        <q-btn flat icon="arrow_back" label="Back to Dashboard" to="/dashboard" no-caps class="q-mb-md" />
+      <q-page>
+        <div class="wda-page" style="max-width: 700px">
+          <div
+            style="
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              margin-bottom: 16px;
+            "
+          >
+            <q-btn
+              flat
+              icon="arrow_back"
+              label="Back to Dashboard"
+              to="/dashboard"
+              no-caps
+              style="
+                font-family: var(--wda-font-ui);
+                font-size: 0.85rem;
+                color: var(--wda-text-muted);
+              "
+            />
+            <q-btn
+              flat
+              round
+              :icon="$q.dark.isActive ? 'light_mode' : 'dark_mode'"
+              @click="$q.dark.toggle()"
+              size="sm"
+            />
+          </div>
 
-        <div class="text-h4 q-mb-lg">Settings</div>
+          <div class="wda-page-title">Settings</div>
+          <div class="wda-page-subtitle">Configure your writing experience</div>
 
-        <div class="text-h6 q-mb-sm">AI Assistant Settings</div>
-        <div class="text-body2 text-grey q-mb-md">
-          By default, Writer's Draft App uses a shared free-tier Gemini API key. You can provide
-          your own key for higher limits or data privacy.
-        </div>
+          <div class="settings-section">
+            <div class="settings-section-title">AI Assistant Settings</div>
+            <div class="settings-section-desc">
+              By default, Writer's Draft App uses a shared free-tier Gemini API key. You can provide
+              your own key for higher limits or data privacy.
+            </div>
 
-        <q-card flat bordered class="q-mb-md">
-          <q-card-section>
-            <!-- State: empty (no key saved) -->
             <template v-if="keyUiState === 'empty'">
               <q-input
                 v-model="keyInputValue"
@@ -22,20 +49,32 @@
                 label="Your Gemini API Key"
                 placeholder="Enter your Gemini API key"
                 outlined
+                color="primary"
                 dense
                 class="q-mb-md"
                 :error="!!keyError"
                 :error-message="keyError"
               >
                 <template #append>
-                  <q-btn flat dense round :icon="showKey ? 'visibility_off' : 'visibility'" @click="showKey = !showKey" />
+                  <q-btn
+                    flat
+                    dense
+                    round
+                    :icon="showKey ? 'visibility_off' : 'visibility'"
+                    @click="showKey = !showKey"
+                  />
                 </template>
               </q-input>
 
-              <q-checkbox v-model="isPaidTier" label="I'm using a paid-tier key (my data won't be used for model training)." class="q-mb-md" />
+              <q-checkbox
+                v-model="isPaidTier"
+                label="I'm using a paid-tier key (my data won't be used for model training)."
+                class="q-mb-md"
+              />
 
               <div class="row q-gutter-sm items-center">
                 <q-btn
+                  unelevated
                   color="primary"
                   label="Save Key"
                   no-caps
@@ -43,27 +82,44 @@
                   :loading="keySaving"
                   @click="saveKey"
                 />
-                <q-btn flat dense size="sm" label="Re-test connection" no-caps @click="runConnectionTest" />
+                <q-btn
+                  flat
+                  dense
+                  size="sm"
+                  label="Re-test connection"
+                  no-caps
+                  @click="runConnectionTest"
+                />
               </div>
             </template>
 
-            <!-- State: locked (key saved, not editing) -->
             <template v-else-if="keyUiState === 'locked'">
               <q-input
                 :model-value="maskedPreview"
                 label="Your Gemini API Key"
                 outlined
+                color="primary"
                 dense
                 disable
                 class="q-mb-md"
               >
                 <template #append>
                   <q-icon name="lock" color="primary" size="sm" class="q-mr-xs" />
-                  <q-btn flat dense round :icon="showKey ? 'visibility_off' : 'visibility'" @click="showKey = !showKey" />
+                  <q-btn
+                    flat
+                    dense
+                    round
+                    :icon="showKey ? 'visibility_off' : 'visibility'"
+                    @click="showKey = !showKey"
+                  />
                 </template>
               </q-input>
 
-              <q-checkbox v-model="isPaidTier" label="I'm using a paid-tier key (my data won't be used for model training)." class="q-mb-md" />
+              <q-checkbox
+                v-model="isPaidTier"
+                label="I'm using a paid-tier key (my data won't be used for model training)."
+                class="q-mb-md"
+              />
               <q-btn
                 v-if="paidTierDirty"
                 flat
@@ -79,12 +135,24 @@
 
               <div class="row q-gutter-sm q-mb-md">
                 <q-btn color="primary" label="Change Key" no-caps outline @click="startEditing" />
-                <q-btn flat color="negative" label="Remove Key" no-caps @click="showRemoveDialog = true" />
-                <q-btn flat dense size="sm" label="Re-test connection" no-caps @click="runConnectionTest" />
+                <q-btn
+                  flat
+                  color="negative"
+                  label="Remove Key"
+                  no-caps
+                  @click="showRemoveDialog = true"
+                />
+                <q-btn
+                  flat
+                  dense
+                  size="sm"
+                  label="Re-test connection"
+                  no-caps
+                  @click="runConnectionTest"
+                />
               </div>
             </template>
 
-            <!-- State: editing (key saved, user clicked Change) -->
             <template v-else-if="keyUiState === 'editing'">
               <q-input
                 v-model="keyInputValue"
@@ -92,6 +160,7 @@
                 label="Your Gemini API Key"
                 placeholder="Enter new Gemini API key"
                 outlined
+                color="primary"
                 dense
                 class="q-mb-md"
                 :error="!!keyError"
@@ -99,14 +168,25 @@
               >
                 <template #append>
                   <q-icon name="lock_open" color="orange" size="sm" class="q-mr-xs" />
-                  <q-btn flat dense round :icon="showKey ? 'visibility_off' : 'visibility'" @click="showKey = !showKey" />
+                  <q-btn
+                    flat
+                    dense
+                    round
+                    :icon="showKey ? 'visibility_off' : 'visibility'"
+                    @click="showKey = !showKey"
+                  />
                 </template>
               </q-input>
 
-              <q-checkbox v-model="isPaidTier" label="I'm using a paid-tier key (my data won't be used for model training)." class="q-mb-md" />
+              <q-checkbox
+                v-model="isPaidTier"
+                label="I'm using a paid-tier key (my data won't be used for model training)."
+                class="q-mb-md"
+              />
 
               <div class="row q-gutter-sm items-center">
                 <q-btn
+                  unelevated
                   color="primary"
                   label="Save Key"
                   no-caps
@@ -115,11 +195,17 @@
                   @click="saveKey"
                 />
                 <q-btn flat label="Cancel" no-caps @click="cancelEditing" />
-                <q-btn flat dense size="sm" label="Re-test connection" no-caps @click="runConnectionTest" />
+                <q-btn
+                  flat
+                  dense
+                  size="sm"
+                  label="Re-test connection"
+                  no-caps
+                  @click="runConnectionTest"
+                />
               </div>
             </template>
 
-            <!-- Connection status badge -->
             <q-banner
               v-if="connectionStatus"
               :class="connectionBannerClass"
@@ -132,17 +218,19 @@
               <div class="text-body2">{{ connectionTitle }}</div>
               <div class="text-caption">{{ connectionSubtitle }}</div>
             </q-banner>
-          </q-card-section>
-        </q-card>
+          </div>
 
-        <div class="text-h6 q-mb-sm q-mt-lg">Writing Goal</div>
+          <div class="settings-section">
+            <div class="settings-section-title">Writing Goal</div>
+            <div class="settings-section-desc">
+              Set a daily word count target to keep yourself motivated.
+            </div>
 
-        <q-card flat bordered>
-          <q-card-section>
             <q-toggle
               v-model="showWordGoal"
               label="Show daily word count goal"
               class="q-mb-md"
+              color="primary"
             />
 
             <q-input
@@ -152,51 +240,61 @@
               label="Daily word goal"
               placeholder="e.g. 1000"
               outlined
+              color="primary"
               dense
               :min="1"
               :max="10000"
               class="q-mb-md"
             />
 
-            <div class="text-caption text-grey q-mb-md">
-              <template v-if="!showWordGoal">
-                Goal tracking is off.
-              </template>
+            <div style="color: var(--wda-text-muted); font-size: 0.85rem; margin-bottom: 16px">
+              <template v-if="!showWordGoal"> Goal tracking is off. </template>
               <template v-else>
-                Goal: {{ formatNumber(dailyWordGoal || 1000) }} words/day &mdash; currently showing on Statistics page.
+                Goal: {{ formatNumber(dailyWordGoal || 1000) }} words/day &mdash; currently showing
+                on Statistics page.
               </template>
             </div>
 
             <div v-if="goalError" class="text-negative q-mb-md">{{ goalError }}</div>
             <div v-if="goalSuccess" class="text-positive q-mb-md">{{ goalSuccess }}</div>
 
-            <div class="row q-gutter-sm">
-              <q-btn color="primary" label="Save" no-caps :loading="goalSaving" @click="saveGoal" />
-            </div>
-          </q-card-section>
-        </q-card>
+            <q-btn
+              unelevated
+              color="primary"
+              label="Save"
+              no-caps
+              :loading="goalSaving"
+              @click="saveGoal"
+            />
+          </div>
 
-        <!-- Remove Key Confirmation Dialog -->
-        <q-dialog v-model="showRemoveDialog">
-          <q-card style="min-width: 400px">
-            <q-card-section>
-              <div class="text-h6">Remove API Key</div>
-            </q-card-section>
-            <q-card-section>
-              <p>Remove your custom API key? The app will revert to using the shared default free-tier key.</p>
-            </q-card-section>
-            <q-card-actions align="right">
-              <q-btn flat label="Cancel" v-close-popup no-caps />
-              <q-btn
-                color="negative"
-                label="Remove"
-                no-caps
-                :loading="keySaving"
-                @click="confirmRemoveKey"
-              />
-            </q-card-actions>
-          </q-card>
-        </q-dialog>
+          <q-dialog v-model="showRemoveDialog">
+            <q-card class="wda-card" style="min-width: 400px">
+              <q-card-section>
+                <div class="text-h6" style="font-family: var(--wda-font-heading)">
+                  Remove API Key
+                </div>
+              </q-card-section>
+              <q-card-section>
+                <p>
+                  Remove your custom API key? The app will revert to using the shared default
+                  free-tier key.
+                </p>
+              </q-card-section>
+              <q-card-actions align="right">
+                <q-btn flat label="Cancel" v-close-popup no-caps />
+                <q-btn
+                  unelevated
+                  color="negative"
+                  label="Remove"
+                  no-caps
+                  :loading="keySaving"
+                  @click="confirmRemoveKey"
+                />
+              </q-card-actions>
+            </q-card>
+          </q-dialog>
+        </div>
       </q-page>
     </q-page-container>
   </q-layout>
@@ -232,7 +330,9 @@ const keyUiState = computed(() => {
 
 const maskedPreview = computed(() => {
   const preview = authStore.geminiApiKeyPreview
-  return preview ? `\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022${preview}` : ''
+  return preview
+    ? '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022' + preview
+    : ''
 })
 
 const paidTierDirty = computed(() => {
@@ -247,53 +347,76 @@ function formatNumber(n) {
 const connectionBannerClass = computed(() => {
   if (!connectionStatus.value) return ''
   switch (connectionStatus.value.status) {
-    case 'testing': return 'bg-grey-2 text-grey-8'
-    case 'ok': return 'bg-positive text-white'
-    case 'quota_exceeded': return 'bg-warning text-warning'
-    case 'invalid_key': return 'bg-negative text-white'
-    case 'not_configured': return 'bg-grey-3 text-grey-8'
-    default: return 'bg-grey-2 text-grey-8'
+    case 'testing':
+      return 'bg-grey-2 text-grey-8'
+    case 'ok':
+      return 'bg-positive text-white'
+    case 'quota_exceeded':
+      return 'bg-warning text-warning'
+    case 'invalid_key':
+      return 'bg-negative text-white'
+    case 'not_configured':
+      return 'bg-grey-3 text-grey-8'
+    default:
+      return 'bg-grey-2 text-grey-8'
   }
 })
 
 const connectionIcon = computed(() => {
   if (!connectionStatus.value) return ''
   switch (connectionStatus.value.status) {
-    case 'ok': return 'check_circle'
-    case 'quota_exceeded': return 'warning'
-    case 'invalid_key': return 'cancel'
-    case 'not_configured': return 'info'
-    default: return ''
+    case 'ok':
+      return 'check_circle'
+    case 'quota_exceeded':
+      return 'warning'
+    case 'invalid_key':
+      return 'cancel'
+    case 'not_configured':
+      return 'info'
+    default:
+      return ''
   }
 })
 
 const connectionColor = computed(() => {
   if (!connectionStatus.value) return ''
   switch (connectionStatus.value.status) {
-    case 'ok': return 'white'
-    case 'quota_exceeded': return 'warning'
-    case 'invalid_key': return 'white'
-    case 'not_configured': return 'grey-8'
-    default: return ''
+    case 'ok':
+      return 'white'
+    case 'quota_exceeded':
+      return 'warning'
+    case 'invalid_key':
+      return 'white'
+    case 'not_configured':
+      return 'grey-8'
+    default:
+      return ''
   }
 })
 
 const connectionTitle = computed(() => {
   if (!connectionStatus.value) return ''
   switch (connectionStatus.value.status) {
-    case 'testing': return 'Testing connection...'
-    case 'ok': return 'Connected'
-    case 'quota_exceeded': return 'Quota exceeded'
-    case 'invalid_key': return 'Invalid key'
-    case 'not_configured': return 'Not configured'
-    default: return ''
+    case 'testing':
+      return 'Testing connection...'
+    case 'ok':
+      return 'Connected'
+    case 'quota_exceeded':
+      return 'Quota exceeded'
+    case 'invalid_key':
+      return 'Invalid key'
+    case 'not_configured':
+      return 'Not configured'
+    default:
+      return ''
   }
 })
 
 const connectionSubtitle = computed(() => {
   if (!connectionStatus.value) return ''
   switch (connectionStatus.value.status) {
-    case 'testing': return ''
+    case 'testing':
+      return ''
     case 'ok':
       return connectionStatus.value.using === 'custom'
         ? 'Using your custom key.'
@@ -304,7 +427,8 @@ const connectionSubtitle = computed(() => {
       return 'This key is not valid. Check it and try again.'
     case 'not_configured':
       return 'No API key available. Add a key above or contact the app administrator.'
-    default: return ''
+    default:
+      return ''
   }
 })
 
@@ -401,7 +525,7 @@ async function saveGoal() {
   try {
     await authStore.updateProfile({
       showWordGoal: showWordGoal.value,
-      dailyWordGoal: showWordGoal.value ? (dailyWordGoal.value || 1000) : null,
+      dailyWordGoal: showWordGoal.value ? dailyWordGoal.value || 1000 : null,
       includeKey: false,
     })
     goalSuccess.value = 'Goal settings saved successfully.'

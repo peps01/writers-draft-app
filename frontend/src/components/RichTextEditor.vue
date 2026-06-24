@@ -1,9 +1,5 @@
 <template>
-  <div
-    ref="editorWrapper"
-    class="rich-text-editor-wrapper"
-    :style="editorInlineStyle"
-  >
+  <div ref="editorWrapper" class="rich-text-editor-wrapper" :style="editorInlineStyle">
     <editor-content :editor="editor" class="editor-content" />
   </div>
 </template>
@@ -18,6 +14,7 @@ import { TextStyle } from '@tiptap/extension-text-style'
 import FontFamily from '@tiptap/extension-font-family'
 import Highlight from '@tiptap/extension-highlight'
 import { watch, ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { FindReplaceExtension } from '@/components/extensions/findReplacePlugin'
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
@@ -39,9 +36,9 @@ function migrateContentIfNeeded(content) {
   html = html.replace(/\*(.+?)\*/g, '<em>$1</em>')
   const paragraphs = html.split(/\n\n+/)
   return paragraphs
-    .map(p => p.trim())
-    .filter(p => p)
-    .map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`)
+    .map((p) => p.trim())
+    .filter((p) => p)
+    .map((p) => `<p>${p.replace(/\n/g, '<br>')}</p>`)
     .join('')
 }
 
@@ -58,6 +55,7 @@ const editor = useEditor({
     TextStyle,
     FontFamily,
     Highlight.configure({ multicolor: false }),
+    FindReplaceExtension,
   ],
   onUpdate: ({ editor }) => {
     const html = editor.getHTML()
@@ -69,9 +67,13 @@ const editor = useEditor({
 
 const fontFamilyCSS = computed(() => {
   switch (props.fontFamily) {
-    case 'monospace': return "'Courier New', Courier, monospace"
-    case 'sans-serif': case 'sans': return 'Arial, Helvetica, sans-serif'
-    default: return 'Georgia, "Times New Roman", serif'
+    case 'monospace':
+      return "'Courier New', Courier, monospace"
+    case 'sans-serif':
+    case 'sans':
+      return 'Arial, Helvetica, sans-serif'
+    default:
+      return 'Georgia, "Times New Roman", serif'
   }
 })
 
@@ -97,30 +99,39 @@ if (sanitizedInitial !== props.modelValue) {
   })
 }
 
-watch(() => props.modelValue, (newVal) => {
-  if (!editor.value) return
-  const current = editor.value.getHTML()
-  if (newVal !== current) {
-    editor.value.commands.setContent(newVal || '<p></p>', false)
-  }
-})
+watch(
+  () => props.modelValue,
+  (newVal) => {
+    if (!editor.value) return
+    const current = editor.value.getHTML()
+    if (newVal !== current) {
+      editor.value.commands.setContent(newVal || '<p></p>', false)
+    }
+  },
+)
 
-watch(() => props.editable, (val) => {
-  if (editor.value) {
-    editor.value.setEditable(val)
-  }
-})
+watch(
+  () => props.editable,
+  (val) => {
+    if (editor.value) {
+      editor.value.setEditable(val)
+    }
+  },
+)
 
-watch(() => props.placeholder, (val) => {
-  if (editor.value) {
-    editor.value.extensionManager.extensions
-      .filter(ext => ext.name === 'placeholder')
-      .forEach(ext => {
-        ext.options.placeholder = val
-      })
-    editor.value.view.dispatch(editor.value.state.tr)
-  }
-})
+watch(
+  () => props.placeholder,
+  (val) => {
+    if (editor.value) {
+      editor.value.extensionManager.extensions
+        .filter((ext) => ext.name === 'placeholder')
+        .forEach((ext) => {
+          ext.options.placeholder = val
+        })
+      editor.value.view.dispatch(editor.value.state.tr)
+    }
+  },
+)
 
 onBeforeUnmount(() => {
   if (editor.value) {
@@ -143,18 +154,6 @@ onBeforeUnmount(() => {
   min-height: 0;
 }
 
-.rich-text-editor-wrapper .ProseMirror {
-  font-family: var(--editor-font-family, Georgia, serif);
-  font-size: var(--editor-font-size, 1.1rem);
-  line-height: 1.7;
-  outline: none;
-  padding: 16px;
-}
-
-.rich-text-editor-wrapper .ProseMirror p {
-  margin: 0.5em 0;
-}
-
 .rich-text-editor-wrapper .ProseMirror p.is-editor-empty:first-child::before {
   color: #adb5bd;
   content: attr(data-placeholder);
@@ -163,38 +162,19 @@ onBeforeUnmount(() => {
   pointer-events: none;
 }
 
-.rich-text-editor-wrapper .ProseMirror blockquote {
-  border-left: 3px solid var(--q-primary, #1976d2);
-  margin: 1em 0;
-  padding: 0.5em 1em;
-  color: #666;
-  font-style: italic;
-}
-
-.rich-text-editor-wrapper .ProseMirror hr {
-  border: none;
-  border-top: 2px dashed #ccc;
-  margin: 2em 0;
-}
-
-.rich-text-editor-wrapper .ProseMirror h1 {
-  font-size: 1.8em;
-  font-weight: 700;
-}
-
-.rich-text-editor-wrapper .ProseMirror h2 {
-  font-size: 1.4em;
-  font-weight: 600;
-}
-
-.rich-text-editor-wrapper .ProseMirror h3 {
-  font-size: 1.2em;
-  font-weight: 600;
-}
-
 .rich-text-editor-wrapper .ProseMirror mark {
   background-color: #fef08a;
   padding: 0.1em 0.2em;
+  border-radius: 2px;
+}
+
+.rich-text-editor-wrapper .search-result {
+  background-color: rgba(255, 213, 0, 0.4);
+  border-radius: 2px;
+}
+
+.rich-text-editor-wrapper .search-result-current {
+  background-color: rgba(255, 140, 0, 0.6);
   border-radius: 2px;
 }
 

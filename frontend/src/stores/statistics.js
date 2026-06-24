@@ -22,7 +22,9 @@ export const useStatisticsStore = defineStore('statistics', () => {
   }
 
   return {
-    stats, loading, error,
+    stats,
+    loading,
+    error,
     fetchStatistics,
   }
 })

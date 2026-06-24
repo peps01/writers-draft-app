@@ -43,9 +43,10 @@ const StoryBibleAutocomplete = Extension.create({
             }
 
             const suggestions = extension.options.getSuggestions()
-            const matches = suggestions.filter(s =>
-              s.toLowerCase().startsWith(currentWord.toLowerCase()) &&
-              s.length > currentWord.length
+            const matches = suggestions.filter(
+              (s) =>
+                s.toLowerCase().startsWith(currentWord.toLowerCase()) &&
+                s.length > currentWord.length,
             )
             if (matches.length === 0) {
               return { decorations: DecorationSet.empty, suggestion: null }

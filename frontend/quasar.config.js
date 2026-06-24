@@ -11,7 +11,7 @@ export default defineConfig((/* ctx */) => {
     // app boot file (/src/boot)
     // --> boot files are part of "main.js"
     // https://v2.quasar.dev/quasar-cli-vite/boot-files
-    boot: ['pinia', 'axios', 'auth'],
+    boot: ['pinia', 'axios', 'auth', 'darkmode'],
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#css
     css: ['app.scss'],
@@ -76,7 +76,18 @@ export default defineConfig((/* ctx */) => {
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#framework
     framework: {
-      config: {},
+      config: {
+        brand: {
+          primary: '#1B3A6B',
+          secondary: '#C9A84C',
+          accent: '#C9A84C',
+          dark: '#1C1C1E',
+          positive: '#2D6A4F',
+          negative: '#C75D3A',
+          info: '#1B3A6B',
+          warning: '#C9A84C',
+        },
+      },
 
       // iconSet: 'material-icons', // Quasar icon set
       // lang: 'en-US', // Quasar language pack

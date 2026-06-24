@@ -1,6 +1,6 @@
 <template>
   <q-dialog v-model="show" persistent>
-    <q-card style="min-width: 450px; max-width: 550px">
+    <q-card class="wda-card" style="min-width: 450px; max-width: 550px">
       <q-card-section class="row items-center justify-between">
         <div class="text-h6">Export to EPUB</div>
         <q-btn flat dense round icon="close" v-close-popup />
@@ -10,9 +10,7 @@
         <div class="text-body2 text-grey q-mb-sm">
           Book: <strong>{{ projectTitle }}</strong>
         </div>
-        <div class="text-caption text-grey q-mb-md">
-          Select the scenes to include in the ebook.
-        </div>
+        <div class="text-caption text-grey q-mb-md">Select the scenes to include in the ebook.</div>
 
         <div v-if="loading" class="text-center q-my-md">
           <q-spinner size="sm" />
@@ -23,17 +21,13 @@
             <q-btn flat dense size="sm" label="Select All" no-caps @click="selectAll" />
             <q-btn flat dense size="sm" label="Deselect All" no-caps @click="deselectAll" />
             <q-space />
-            <span class="text-caption text-grey">{{ selectedCount }} / {{ scenes.length }} selected</span>
+            <span class="text-caption text-grey"
+              >{{ selectedCount }} / {{ scenes.length }} selected</span
+            >
           </div>
 
           <q-list bordered separator dense style="max-height: 300px; overflow-y: auto">
-            <q-item
-              v-for="scene in scenes"
-              :key="scene.id"
-              tag="label"
-              v-ripple
-              clickable
-            >
+            <q-item v-for="scene in scenes" :key="scene.id" tag="label" v-ripple clickable>
               <q-item-section side>
                 <q-checkbox v-model="selectedIds" :val="scene.id" />
               </q-item-section>

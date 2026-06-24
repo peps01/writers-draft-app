@@ -1,290 +1,339 @@
 <template>
   <q-layout>
     <q-page-container>
-      <q-page class="q-pa-md">
-        <q-btn
-          v-if="!fullscreen"
-          flat
-          icon="arrow_back"
-          label="Back to Project"
-          :to="`/projects/${projectId}`"
-          no-caps
-          class="q-mb-md"
-        />
+      <q-page class="write-page">
+        <!-- Left: Scene Board -->
+        <div v-if="!fullscreen" class="scene-board">
+          <div class="scene-board-header">Scenes</div>
 
-        <div class="row" style="height: calc(100vh - 120px)">
-          <!-- Left Panel: Scene Board -->
-          <div v-if="!fullscreen" class="col-4 col-sm-3 q-pr-md" style="display: flex; flex-direction: column">
+          <div style="padding: 12px 16px">
             <q-btn
               label="New Scene"
               color="primary"
               icon="add"
+              unelevated
               no-caps
-              class="q-mb-sm"
+              class="full-width"
+              size="sm"
               @click="handleCreateScene"
+              style="font-family: var(--wda-font-ui)"
             />
-
-            <div
-              v-if="scenesStore.loading"
-              class="text-center q-mt-lg"
-            >
-              <q-spinner size="md" />
-            </div>
-
-            <div
-              v-else-if="scenesStore.scenes.length === 0"
-              class="text-center q-mt-lg text-grey"
-            >
-              No scenes yet. Create one to start writing.
-            </div>
-
-            <div
-              v-else
-              ref="sceneListContainer"
-              class="scene-list"
-            >
-              <div
-                v-for="scene in scenesStore.scenes"
-                :key="scene.id"
-                :data-id="scene.id"
-                class="scene-card-wrapper q-mb-sm"
-              >
-                <q-card
-                  flat
-                  bordered
-                  :class="{ 'selected-scene': scenesStore.activeSceneId === scene.id }"
-                  class="cursor-pointer"
-                  @click="scenesStore.setActiveScene(scene.id)"
-                >
-                  <q-card-section class="row items-center no-wrap q-py-sm q-px-sm">
-                    <q-icon
-                      name="drag_indicator"
-                      class="drag-handle cursor-grab q-mr-sm"
-                      size="sm"
-                      color="grey-5"
-                    />
-                    <div class="col q-ml-xs" style="min-width: 0">
-                      <div class="text-body2 ellipsis">
-                        {{ scene.title || 'Untitled Scene' }}
-                      </div>
-                      <div class="text-caption text-grey">#{{ scene.order + 1 }}</div>
-                    </div>
-                    <q-btn
-                      flat
-                      dense
-                      round
-                      icon="more_vert"
-                      size="sm"
-                      @click.stop
-                    >
-                      <q-menu anchor="bottom end" self="top end">
-                        <q-list dense style="min-width: 120px">
-                          <q-item
-                            clickable
-                            v-close-popup
-                            @click.stop="confirmDeleteScene(scene)"
-                          >
-                            <q-item-section class="text-negative">Delete</q-item-section>
-                          </q-item>
-                        </q-list>
-                      </q-menu>
-                    </q-btn>
-                  </q-card-section>
-                </q-card>
-              </div>
-            </div>
-
-            <div v-if="reordering" class="text-primary q-mt-sm">
-              <q-spinner size="sm" class="q-mr-xs" />
-              Saving order...
-            </div>
-            <div v-else-if="scenesStore.error && scenesStore.scenes.length > 0" class="text-negative q-mt-sm text-caption">
-              {{ scenesStore.error }}
-            </div>
           </div>
 
-          <!-- Right Panel: Editor -->
-          <div :class="fullscreen ? 'col-12' : 'col-8 col-sm-9'" style="display: flex; flex-direction: column; height: 100%; overflow: hidden">
-            <template v-if="!activeScene">
-              <div class="text-center text-grey q-mt-xl">
-                <q-icon name="edit_note" size="64px" color="grey-4" />
-                <div class="text-h6 q-mt-md">Select a scene to start writing</div>
-                <div class="text-body1">or create a new one.</div>
-              </div>
-            </template>
+          <div
+            v-if="scenesStore.loading"
+            class="text-center q-mt-lg"
+            style="color: var(--wda-text-muted)"
+          >
+            <q-spinner size="md" color="primary" />
+          </div>
 
-            <template v-else>
-              <div class="row items-center q-mb-sm">
-                <q-input
-                  v-model="titleDraft"
-                  label="Scene title"
-                  dense
-                  outlined
-                  class="col"
-                  @blur="saveTitle"
-                  @keyup.enter="saveTitle"
-                />
-                <div class="q-ml-sm text-caption" style="min-width: 80px; text-align: right">
-                  <q-spinner
-                    v-if="scenesStore.saveStatus === 'saving'"
+          <div
+            v-else-if="scenesStore.scenes.length === 0"
+            style="
+              padding: 16px;
+              text-align: center;
+              color: var(--wda-text-muted);
+              font-size: 0.85rem;
+            "
+          >
+            No scenes yet. Create one to start writing.
+          </div>
+
+          <div v-else ref="sceneListContainer" style="overflow-y: auto; flex: 1">
+            <div v-for="scene in scenesStore.scenes" :key="scene.id" :data-id="scene.id">
+              <div
+                class="scene-card"
+                :class="{ active: scenesStore.activeSceneId === scene.id }"
+                @click="scenesStore.setActiveScene(scene.id)"
+              >
+                <div style="display: flex; align-items: center; gap: 8px">
+                  <q-icon
+                    name="drag_indicator"
+                    class="drag-handle cursor-grab"
                     size="sm"
-                    class="q-mr-xs"
+                    style="color: var(--wda-text-muted); flex-shrink: 0; touch-action: none"
                   />
-                  <span
-                    :class="{
-                      'text-primary': scenesStore.saveStatus === 'saving',
-                      'text-positive': scenesStore.saveStatus === 'saved',
-                      'text-negative': scenesStore.saveStatus === 'error',
-                      'text-grey': scenesStore.saveStatus === 'idle',
-                    }"
-                  >
-                    <template v-if="scenesStore.saveStatus === 'saving'">Saving...</template>
-                    <template v-else-if="scenesStore.saveStatus === 'saved'">Saved</template>
-                    <template v-else-if="scenesStore.saveStatus === 'error'">Error saving</template>
-                    <template v-else>Ready</template>
-                  </span>
-                  <q-btn
-                    flat
-                    dense
-                    round
-                    icon="history"
-                    size="sm"
-                    class="q-ml-xs"
-                    @click="openHistoryDrawer"
-                  />
-                  <q-btn
-                    flat
-                    dense
-                    round
-                    icon="auto_awesome"
-                    size="sm"
-                    class="q-ml-xs"
-                    @click="openAiDrawer"
-                  />
-                  <q-btn
-                    flat
-                    dense
-                    round
-                    icon="download"
-                    size="sm"
-                    class="q-ml-xs"
-                    @click="showExportDialog = true"
-                  />
-                  <q-btn
-                    flat
-                    dense
-                    round
-                    :icon="fullscreen ? 'fullscreen_exit' : 'fullscreen'"
-                    size="sm"
-                    class="q-ml-xs"
-                    @click="toggleFullscreen"
-                  />
+                  <div style="flex: 1; min-width: 0">
+                    <div class="scene-card-order">#{{ scene.order + 1 }}</div>
+                    <div class="scene-card-title">{{ scene.title || 'Untitled Scene' }}</div>
+                  </div>
+                  <q-btn flat dense round icon="more_vert" size="sm" @click.stop>
+                    <q-menu anchor="bottom end" self="top end">
+                      <q-list dense style="min-width: 120px">
+                        <q-item clickable v-close-popup @click.stop="confirmDeleteScene(scene)">
+                          <q-item-section class="text-negative">Delete</q-item-section>
+                        </q-item>
+                      </q-list>
+                    </q-menu>
+                  </q-btn>
                 </div>
               </div>
-
-              <EditorToolbar
-                :editor="editorRef"
-                :word-count="liveWordCount"
-                :show-find-replace="showFindReplace"
-                :font-size="fontSize"
-                :font-family="fontFamily"
-                @font-family-change="handleFontFamilyChange"
-                @font-size-change="handleFontSizeChange"
-                @toggle-find-replace="showFindReplace = !showFindReplace"
-              />
-
-              <FindReplaceBar
-                v-if="showFindReplace"
-                :editor="editorRef"
-                @close="showFindReplace = false"
-              />
-
-              <RichTextEditor
-                ref="richEditorRef"
-                v-model="sceneContent"
-                :font-size="fontSize"
-                :font-family="fontFamily"
-                placeholder="Begin writing your scene..."
-                @word-count-update="liveWordCount = $event"
-                @ready="editorRef = $event"
-              />
-
-              <div v-if="!fullscreen" class="row q-gutter-md q-mt-sm items-start">
-                <q-select
-                  v-model="selectedCharacters"
-                  :options="characterOptions"
-                  label="Characters"
-                  multiple
-                  use-chips
-                  dense
-                  outlined
-                  clearable
-                  class="col"
-                  @update:model-value="saveTags"
-                >
-                  <template v-if="characterOptions.length === 0" #append>
-                    <q-icon name="info" size="sm" color="grey" />
-                  </template>
-                </q-select>
-
-                <q-select
-                  v-model="selectedPlaces"
-                  :options="placeOptions"
-                  label="Places"
-                  multiple
-                  use-chips
-                  dense
-                  outlined
-                  clearable
-                  class="col"
-                  @update:model-value="saveTags"
-                >
-                  <template v-if="placeOptions.length === 0" #append>
-                    <q-icon name="info" size="sm" color="grey" />
-                  </template>
-                </q-select>
-
-                <q-select
-                  v-model="selectedTimelineEvents"
-                  :options="timelineEventOptions"
-                  label="Timeline Events"
-                  multiple
-                  use-chips
-                  dense
-                  outlined
-                  clearable
-                  class="col"
-                  @update:model-value="saveTags"
-                >
-                  <template v-if="timelineEventOptions.length === 0" #append>
-                    <q-icon name="info" size="sm" color="grey" />
-                  </template>
-                </q-select>
-              </div>
-
-              <div
-                v-if="!fullscreen && characterOptions.length === 0 && placeOptions.length === 0 && timelineEventOptions.length === 0"
-                class="text-caption text-grey q-mt-xs"
-              >
-                No characters, places, or timeline events yet.
-                <router-link :to="`/projects/${projectId}/story-bible`">
-                  Add some to your Story Bible
-                </router-link>
-                to tag them to scenes.
-              </div>
-            </template>
+            </div>
           </div>
+
+          <div
+            v-if="reordering"
+            style="
+              padding: 8px 16px;
+              display: flex;
+              align-items: center;
+              gap: 8px;
+              color: var(--wda-primary);
+              font-size: 0.8rem;
+            "
+          >
+            <q-spinner size="sm" />
+            Saving order...
+          </div>
+          <div
+            v-else-if="scenesStore.error && scenesStore.scenes.length > 0"
+            style="padding: 8px 16px; font-size: 0.8rem; color: var(--wda-negative, #c75d3a)"
+          >
+            {{ scenesStore.error }}
+          </div>
+        </div>
+
+        <!-- Right: Editor Area -->
+        <div class="editor-area">
+          <!-- Top bar with back button and actions -->
+          <div
+            style="
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              padding: 8px 16px;
+              border-bottom: 1px solid var(--wda-border);
+            "
+          >
+            <div style="display: flex; align-items: center; gap: 8px">
+              <q-btn
+                v-if="!fullscreen"
+                flat
+                dense
+                icon="arrow_back"
+                size="sm"
+                :to="`/projects/${projectId}`"
+                style="color: var(--wda-text-muted)"
+              />
+              <q-btn
+                flat
+                round
+                :icon="$q.dark.isActive ? 'light_mode' : 'dark_mode'"
+                @click="$q.dark.toggle()"
+                size="sm"
+              />
+            </div>
+            <div style="display: flex; align-items: center; gap: 4px">
+              <q-btn flat dense round icon="history" size="sm" @click="openHistoryDrawer">
+                <q-tooltip>Version History</q-tooltip>
+              </q-btn>
+              <q-btn flat dense round icon="auto_awesome" size="sm" @click="openAiDrawer">
+                <q-tooltip>AI Assistant</q-tooltip>
+              </q-btn>
+              <q-btn flat dense round icon="download" size="sm" @click="showExportDialog = true">
+                <q-tooltip>Export</q-tooltip>
+              </q-btn>
+              <q-btn
+                flat
+                dense
+                round
+                :icon="fullscreen ? 'fullscreen_exit' : 'fullscreen'"
+                size="sm"
+                @click="toggleFullscreen"
+              >
+                <q-tooltip>{{ fullscreen ? 'Exit Fullscreen' : 'Fullscreen' }}</q-tooltip>
+              </q-btn>
+            </div>
+          </div>
+
+          <template v-if="!activeScene">
+            <div
+              class="empty-state"
+              style="
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+              "
+            >
+              <q-icon
+                name="edit_note"
+                size="64px"
+                style="color: var(--wda-text-muted); opacity: 0.4"
+              />
+              <p class="empty-state-title">Select a scene to start writing</p>
+              <p class="empty-state-desc" style="margin-bottom: 0">or create a new one.</p>
+            </div>
+          </template>
+
+          <template v-else>
+            <!-- Title + Save Status -->
+            <div
+              style="
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                padding: 12px 16px;
+                border-bottom: 1px solid var(--wda-border);
+              "
+            >
+              <q-input
+                v-model="titleDraft"
+                label="Scene title"
+                dense
+                outlined
+                class="col"
+                style="font-family: var(--wda-font-heading)"
+                @blur="saveTitle"
+                @keyup.enter="saveTitle"
+              />
+              <div :class="'save-status ' + saveStatusClass">
+                <q-spinner v-if="scenesStore.saveStatus === 'saving'" size="xs" class="q-mr-xs" />
+                {{ saveStatusText }}
+              </div>
+            </div>
+
+            <div style="border-bottom: 1px solid var(--wda-border)">
+              <div
+                class="row items-center cursor-pointer q-px-md q-py-sm"
+                style="color: var(--wda-text-muted); user-select: none"
+                @click="showToolbar = !showToolbar"
+              >
+                <q-icon :name="showToolbar ? 'expand_less' : 'expand_more'" size="sm" />
+                <span class="text-caption q-ml-xs">Formatting</span>
+              </div>
+              <template v-if="showToolbar">
+                <EditorToolbar
+                  :editor="editorRef"
+                  :word-count="liveWordCount"
+                  :show-find-replace="showFindReplace"
+                  :font-size="fontSize"
+                  :font-family="fontFamily"
+                  @font-family-change="handleFontFamilyChange"
+                  @font-size-change="handleFontSizeChange"
+                  @toggle-find-replace="showFindReplace = !showFindReplace"
+                />
+              </template>
+            </div>
+
+            <FindReplaceBar
+              v-if="showFindReplace"
+              :editor="editorRef"
+              @close="showFindReplace = false"
+            />
+
+            <RichTextEditor
+              ref="richEditorRef"
+              v-model="sceneContent"
+              :font-size="fontSize"
+              :font-family="fontFamily"
+              placeholder="Begin writing your scene..."
+              @word-count-update="liveWordCount = $event"
+              @ready="editorRef = $event"
+            />
+
+            <div v-if="!fullscreen" style="border-top: 1px solid var(--wda-border)">
+              <div
+                class="row items-center cursor-pointer q-px-md q-py-sm tags-toggle"
+                style="color: var(--wda-text-muted); user-select: none"
+                @click="showStoryBibleTags = !showStoryBibleTags"
+              >
+                <q-icon :name="showStoryBibleTags ? 'expand_less' : 'expand_more'" size="sm" />
+                <span class="text-caption q-ml-xs">Story Bible — {{ tagsSummary }}</span>
+              </div>
+
+              <template v-if="showStoryBibleTags">
+                <div
+                  v-if="
+                    characterOptions.length > 0 ||
+                    placeOptions.length > 0 ||
+                    timelineEventOptions.length > 0
+                  "
+                  class="row q-gutter-md q-mt-xs items-start q-px-md q-pb-md"
+                >
+                  <q-select
+                    v-model="selectedCharacters"
+                    :options="characterOptions"
+                    label="Characters"
+                    multiple
+                    use-chips
+                    dense
+                    outlined
+                    color="primary"
+                    clearable
+                    class="col"
+                    @update:model-value="saveTags"
+                  >
+                    <template v-if="characterOptions.length === 0" #append>
+                      <q-icon name="info" size="sm" color="grey" />
+                    </template>
+                  </q-select>
+
+                  <q-select
+                    v-model="selectedPlaces"
+                    :options="placeOptions"
+                    label="Places"
+                    multiple
+                    use-chips
+                    dense
+                    outlined
+                    color="primary"
+                    clearable
+                    class="col"
+                    @update:model-value="saveTags"
+                  >
+                    <template v-if="placeOptions.length === 0" #append>
+                      <q-icon name="info" size="sm" color="grey" />
+                    </template>
+                  </q-select>
+
+                  <q-select
+                    v-model="selectedTimelineEvents"
+                    :options="timelineEventOptions"
+                    label="Timeline Events"
+                    multiple
+                    use-chips
+                    dense
+                    outlined
+                    color="primary"
+                    clearable
+                    class="col"
+                    @update:model-value="saveTags"
+                  >
+                    <template v-if="timelineEventOptions.length === 0" #append>
+                      <q-icon name="info" size="sm" color="grey" />
+                    </template>
+                  </q-select>
+                </div>
+                <div
+                  v-else
+                  class="text-caption q-px-md q-pb-md"
+                  style="color: var(--wda-text-muted)"
+                >
+                  No characters, places, or timeline events yet.
+                  <router-link :to="`/projects/${projectId}/story-bible`">
+                    Add some to your Story Bible
+                  </router-link>
+                  to tag them to scenes.
+                </div>
+              </template>
+            </div>
+          </template>
         </div>
 
         <!-- Delete Confirmation Dialog -->
         <q-dialog v-model="showDeleteDialog">
-          <q-card style="min-width: 350px">
+          <q-card class="wda-card" style="min-width: 350px">
             <q-card-section>
-              <div class="text-h6">Delete Scene</div>
+              <div class="text-h6" style="font-family: var(--wda-font-heading)">Delete Scene</div>
             </q-card-section>
             <q-card-section>
               <p>
-                Are you sure you want to delete '<strong>{{ deleteTarget?.title || 'Untitled Scene' }}</strong
+                Are you sure you want to delete '<strong>{{
+                  deleteTarget?.title || 'Untitled Scene'
+                }}</strong
                 >'? This cannot be undone.
               </p>
               <div v-if="deleteError" class="text-negative">{{ deleteError }}</div>
@@ -292,6 +341,7 @@
             <q-card-actions align="right">
               <q-btn flat label="Cancel" v-close-popup no-caps />
               <q-btn
+                unelevated
                 color="negative"
                 label="Delete"
                 :loading="deleting"
@@ -304,25 +354,29 @@
 
         <!-- Restore Confirmation Dialog -->
         <q-dialog v-model="showRestoreDialog">
-          <q-card style="min-width: 400px">
+          <q-card class="wda-card" style="min-width: 400px">
             <q-card-section>
-              <div class="text-h6">Restore Version</div>
+              <div class="text-h6" style="font-family: var(--wda-font-heading)">
+                Restore Version
+              </div>
             </q-card-section>
             <q-card-section>
               <div class="text-body2 q-mb-md" v-if="restoreVersionTarget">
                 <strong>Version from {{ relativeTime(restoreVersionTarget.created_at) }}</strong>
               </div>
               <div class="text-caption q-mb-md" v-if="restoreVersionTarget">
-                &ldquo;{{ restoreVersionTarget.content.substring(0, 100) }}{{ restoreVersionTarget.content.length > 100 ? '...' : '' }}&rdquo;
+                &ldquo;{{ previewText(restoreVersionTarget.content) }}&rdquo;
               </div>
               <div class="text-negative text-body2 q-mb-md">
-                Restoring this version will replace your current scene content. A snapshot of your current content will be saved automatically before the restore.
+                Restoring this version will replace your current scene content. A snapshot of your
+                current content will be saved automatically before the restore.
               </div>
               <q-input
                 v-model="restorePassword"
                 type="password"
                 label="Enter your password to confirm"
                 outlined
+                color="primary"
                 dense
                 :error="!!sceneVersionsStore.restoreError"
                 :error-message="sceneVersionsStore.restoreError || ''"
@@ -331,6 +385,7 @@
             <q-card-actions align="right">
               <q-btn flat label="Cancel" no-caps @click="closeRestoreDialog" />
               <q-btn
+                unelevated
                 color="primary"
                 label="Restore"
                 :disable="!restorePassword"
@@ -341,57 +396,60 @@
             </q-card-actions>
           </q-card>
         </q-dialog>
-      <ExportDialog
-        v-model="showExportDialog"
-        :project-id="projectId"
-        :project-title="activeScene?.title || projectId"
-        :scenes="scenesStore.scenes"
-      />
+
+        <ExportDialog
+          v-model="showExportDialog"
+          :project-id="projectId"
+          :project-title="activeScene?.title || projectId"
+          :scenes="scenesStore.scenes"
+        />
       </q-page>
     </q-page-container>
 
     <!-- Version History Drawer -->
-    <q-drawer
-      v-model="showHistoryDrawer"
-      side="right"
-      behavior="mobile"
-      bordered
-      :width="380"
-    >
+    <q-drawer v-model="showHistoryDrawer" side="right" behavior="mobile" bordered :width="380">
       <div class="q-pa-md" style="height: 100%; display: flex; flex-direction: column">
-        <div class="text-h6 q-mb-md ellipsis">
+        <div class="text-h6 q-mb-md ellipsis" style="font-family: var(--wda-font-heading)">
           Version History &mdash; {{ activeScene?.title || 'Untitled Scene' }}
         </div>
 
-        <div v-if="sceneVersionsStore.loading && sceneVersionsStore.versions.length === 0" class="text-center q-mt-lg">
-          <q-spinner size="md" />
+        <div
+          v-if="sceneVersionsStore.loading && sceneVersionsStore.versions.length === 0"
+          class="text-center q-mt-lg"
+          style="color: var(--wda-text-muted)"
+        >
+          <q-spinner size="md" color="primary" />
         </div>
 
-        <div v-else-if="sceneVersionsStore.versions.length === 0" class="text-center q-mt-lg text-grey">
+        <div
+          v-else-if="sceneVersionsStore.versions.length === 0"
+          class="text-center q-mt-lg"
+          style="color: var(--wda-text-muted)"
+        >
           No versions yet.
         </div>
 
         <div v-else class="scroll" style="flex: 1; overflow-y: auto">
           <div v-for="version in sceneVersionsStore.versions" :key="version.id" class="q-mb-sm">
-            <q-card flat bordered>
-              <q-card-section class="q-py-sm q-px-md">
-                <div class="row items-center justify-between no-wrap">
-                  <div class="text-caption text-grey">{{ relativeTime(version.created_at) }}</div>
-                  <q-btn
-                    flat
-                    dense
-                    color="primary"
-                    label="Restore"
-                    size="sm"
-                    no-caps
-                    @click="confirmRestore(version)"
-                  />
+            <div class="wda-card" style="padding: 12px 16px">
+              <div class="row items-center justify-between no-wrap">
+                <div class="text-caption" style="color: var(--wda-text-muted)">
+                  {{ relativeTime(version.created_at) }}
                 </div>
-                <div class="text-body2 q-mt-xs ellipsis-2-lines">
-                  {{ version.content.substring(0, 100) }}{{ version.content.length > 100 ? '...' : '' }}
-                </div>
-              </q-card-section>
-            </q-card>
+                <q-btn
+                  flat
+                  dense
+                  color="primary"
+                  label="Restore"
+                  size="sm"
+                  no-caps
+                  @click="confirmRestore(version)"
+                />
+              </div>
+              <div class="text-body2 q-mt-xs ellipsis-2-lines" style="color: var(--wda-text-muted)">
+                {{ previewText(version.content) }}
+              </div>
+            </div>
           </div>
 
           <div v-if="sceneVersionsStore.hasMore" class="text-center q-mt-sm">
@@ -409,20 +467,15 @@
     </q-drawer>
 
     <!-- AI Assistant Drawer -->
-    <q-drawer
-      v-model="showAiDrawer"
-      side="right"
-      behavior="mobile"
-      bordered
-      :width="400"
-    >
+    <q-drawer v-model="showAiDrawer" side="right" behavior="mobile" bordered :width="400">
       <div class="q-pa-md" style="height: 100%; display: flex; flex-direction: column">
         <div class="row items-center justify-between q-mb-md">
-          <div class="text-h6 ellipsis">AI Assistant &mdash; {{ activeScene?.title || 'Untitled Scene' }}</div>
+          <div class="text-h6 ellipsis" style="font-family: var(--wda-font-heading)">
+            AI Assistant &mdash; {{ activeScene?.title || 'Untitled Scene' }}
+          </div>
           <q-btn flat dense round icon="close" size="sm" @click="closeAiDrawer" />
         </div>
 
-        <!-- Free-tier warning -->
         <q-banner
           v-if="showFreeTierWarning"
           class="bg-warning text-warning q-mb-sm rounded-borders"
@@ -430,14 +483,27 @@
           <template #avatar>
             <q-icon name="warning" color="warning" />
           </template>
-          This AI assistant is running on a free-tier key. Your prompts may be used by Google to improve their models.
+          This AI assistant is running on a free-tier key. Your prompts may be used by Google to
+          improve their models.
           <template #action>
-            <q-btn flat color="warning" label="Go to Settings" no-caps to="/settings" @click="closeAiDrawer" />
-            <q-btn flat color="warning" label="I understand" no-caps @click="dismissFreeTierWarning" />
+            <q-btn
+              flat
+              color="warning"
+              label="Go to Settings"
+              no-caps
+              to="/settings"
+              @click="closeAiDrawer"
+            />
+            <q-btn
+              flat
+              color="warning"
+              label="I understand"
+              no-caps
+              @click="dismissFreeTierWarning"
+            />
           </template>
         </q-banner>
 
-        <!-- Empty tagging note -->
         <q-banner
           v-if="activeScene && !hasStoryBibleTags"
           class="bg-info text-info q-mb-sm rounded-borders"
@@ -447,20 +513,33 @@
           </template>
           Tag characters, places, and timeline events to this scene for more grounded AI feedback.
           <template #action>
-            <q-btn flat color="info" label="Story Bible" no-caps :to="`/projects/${projectId}/story-bible`" @click="closeAiDrawer" />
+            <q-btn
+              flat
+              color="info"
+              label="Story Bible"
+              no-caps
+              :to="`/projects/${projectId}/story-bible`"
+              @click="closeAiDrawer"
+            />
           </template>
         </q-banner>
 
-        <!-- No key configured state -->
         <template v-if="showNoKeyState">
           <div class="text-center q-mt-lg text-negative">
             <q-icon name="error_outline" size="48px" />
             <div class="text-body1 q-mt-sm">{{ conversationsStore.error }}</div>
-            <q-btn flat color="primary" label="Go to Settings" no-caps to="/settings" class="q-mt-sm" @click="closeAiDrawer" />
+            <q-btn
+              flat
+              color="primary"
+              label="Go to Settings"
+              no-caps
+              to="/settings"
+              class="q-mt-sm"
+              @click="closeAiDrawer"
+            />
           </div>
         </template>
 
-        <!-- General error banner (quota, etc.) -->
         <q-banner
           v-else-if="conversationsStore.error && !showNoKeyState"
           class="bg-negative text-white q-mb-sm rounded-borders"
@@ -471,13 +550,8 @@
           {{ conversationsStore.error }}
         </q-banner>
 
-        <!-- Message list -->
         <template v-else>
-          <div
-            ref="messageListRef"
-            class="scroll q-mb-sm"
-            style="flex: 1; overflow-y: auto"
-          >
+          <div ref="messageListRef" class="scroll q-mb-sm" style="flex: 1; overflow-y: auto">
             <div
               v-for="msg in conversationsStore.messages"
               :key="msg.id"
@@ -492,14 +566,16 @@
               >
                 <q-card-section class="q-py-sm q-px-md">
                   <div class="text-body2" style="white-space: pre-wrap">{{ msg.content }}</div>
-                  <div class="text-caption q-mt-xs" :class="msg.role === 'user' ? 'text-white text-opacity-70' : 'text-grey'">
+                  <div
+                    class="text-caption q-mt-xs"
+                    :class="msg.role === 'user' ? 'text-white text-opacity-70' : 'text-grey'"
+                  >
                     {{ relativeTime(msg.created_at) }}
                   </div>
                 </q-card-section>
               </q-card>
             </div>
 
-            <!-- Loading indicator -->
             <div v-if="conversationsStore.sending" class="flex justify-start q-mb-sm">
               <q-card flat bordered style="max-width: 85%; display: inline-block">
                 <q-card-section class="q-py-sm q-px-md">
@@ -510,7 +586,6 @@
             </div>
           </div>
 
-          <!-- Message input -->
           <div class="row items-end q-gutter-sm">
             <q-input
               v-model="messageDraft"
@@ -518,6 +593,7 @@
               autogrow
               placeholder="Ask the AI assistant..."
               outlined
+              color="primary"
               dense
               class="col"
               :disable="conversationsStore.sending"
@@ -568,6 +644,7 @@ const timelineEventsStore = useTimelineEventsStore()
 const fullscreen = ref(false)
 const fontSize = ref(localStorage.getItem('wda_font_size') || '1.1rem')
 const fontFamily = ref(localStorage.getItem('wda_font_family') || 'serif')
+const showToolbar = ref(true)
 const showFindReplace = ref(false)
 const liveWordCount = ref(0)
 const editorRef = shallowRef(null)
@@ -609,8 +686,6 @@ function onKeydown(e) {
   }
 }
 
-
-
 const activeScene = computed(() => {
   if (scenesStore.activeSceneId === null) return null
   return scenesStore.scenes.find((s) => s.id === scenesStore.activeSceneId) || null
@@ -619,9 +694,11 @@ const activeScene = computed(() => {
 const hasStoryBibleTags = computed(() => {
   if (!activeScene.value) return false
   const s = activeScene.value
-  return (s.characters && s.characters.length > 0) ||
+  return (
+    (s.characters && s.characters.length > 0) ||
     (s.places && s.places.length > 0) ||
     (s.timeline_events && s.timeline_events.length > 0)
+  )
 })
 
 const showNoKeyState = computed(() => {
@@ -631,6 +708,24 @@ const showNoKeyState = computed(() => {
     conversationsStore.messages.length === 0 &&
     conversationsStore.error.includes('not configured')
   )
+})
+
+// Save status helpers
+const saveStatusClass = computed(() => {
+  return scenesStore.saveStatus
+})
+
+const saveStatusText = computed(() => {
+  switch (scenesStore.saveStatus) {
+    case 'saving':
+      return 'Saving...'
+    case 'saved':
+      return 'Saved'
+    case 'error':
+      return 'Error saving'
+    default:
+      return 'Ready'
+  }
 })
 
 // ---- Data fetching ----
@@ -733,13 +828,17 @@ async function submitDelete() {
 // ---- Title editing ----
 const titleDraft = ref('')
 
-watch(activeScene, (scene) => {
-  if (scene) {
-    titleDraft.value = scene.title
-  } else {
-    titleDraft.value = ''
-  }
-}, { immediate: true })
+watch(
+  activeScene,
+  (scene) => {
+    if (scene) {
+      titleDraft.value = scene.title
+    } else {
+      titleDraft.value = ''
+    }
+  },
+  { immediate: true },
+)
 
 function saveTitle() {
   if (!activeScene.value) return
@@ -754,20 +853,26 @@ const sceneContent = ref('')
 let saveTimer = null
 let isExternalUpdate = false
 
-watch(activeScene, (scene) => {
-  if (saveTimer) {
-    clearTimeout(saveTimer)
-    saveTimer = null
-  }
-  if (scene) {
-    isExternalUpdate = true
-    sceneContent.value = scene.content
-    nextTick(() => { isExternalUpdate = false })
-    liveWordCount.value = 0
-  } else {
-    sceneContent.value = ''
-  }
-}, { immediate: true })
+watch(
+  activeScene,
+  (scene) => {
+    if (saveTimer) {
+      clearTimeout(saveTimer)
+      saveTimer = null
+    }
+    if (scene) {
+      isExternalUpdate = true
+      sceneContent.value = scene.content
+      nextTick(() => {
+        isExternalUpdate = false
+      })
+      liveWordCount.value = 0
+    } else {
+      sceneContent.value = ''
+    }
+  },
+  { immediate: true },
+)
 
 watch(sceneContent, (newVal) => {
   if (isExternalUpdate) return
@@ -787,6 +892,24 @@ onBeforeUnmount(() => {
 const selectedCharacters = ref([])
 const selectedPlaces = ref([])
 const selectedTimelineEvents = ref([])
+
+const showStoryBibleTags = ref(false)
+
+const tagsSummary = computed(() => {
+  const parts = []
+  if (selectedCharacters.value.length)
+    parts.push(
+      `${selectedCharacters.value.length} character${selectedCharacters.value.length > 1 ? 's' : ''}`,
+    )
+  if (selectedPlaces.value.length)
+    parts.push(`${selectedPlaces.value.length} place${selectedPlaces.value.length > 1 ? 's' : ''}`)
+  if (selectedTimelineEvents.value.length)
+    parts.push(
+      `${selectedTimelineEvents.value.length} timeline event${selectedTimelineEvents.value.length > 1 ? 's' : ''}`,
+    )
+  if (!parts.length) return 'No tags'
+  return parts.join(', ')
+})
 
 const characterOptions = computed(() => {
   return charactersStore.characters.map((c) => ({
@@ -809,26 +932,30 @@ const timelineEventOptions = computed(() => {
   }))
 })
 
-watch(activeScene, (scene) => {
-  if (scene) {
-    selectedCharacters.value = (scene.characters || []).map((id) => {
-      const c = charactersStore.characters.find((ch) => ch.id === id)
-      return c ? { label: c.name, value: c.id } : { label: `#${id}`, value: id }
-    })
-    selectedPlaces.value = (scene.places || []).map((id) => {
-      const p = placesStore.places.find((pl) => pl.id === id)
-      return p ? { label: p.name, value: p.id } : { label: `#${id}`, value: id }
-    })
-    selectedTimelineEvents.value = (scene.timeline_events || []).map((id) => {
-      const e = timelineEventsStore.timelineEvents.find((ev) => ev.id === id)
-      return e ? { label: e.title, value: e.id } : { label: `#${id}`, value: id }
-    })
-  } else {
-    selectedCharacters.value = []
-    selectedPlaces.value = []
-    selectedTimelineEvents.value = []
-  }
-}, { immediate: true })
+watch(
+  activeScene,
+  (scene) => {
+    if (scene) {
+      selectedCharacters.value = (scene.characters || []).map((id) => {
+        const c = charactersStore.characters.find((ch) => ch.id === id)
+        return c ? { label: c.name, value: c.id } : { label: `#${id}`, value: id }
+      })
+      selectedPlaces.value = (scene.places || []).map((id) => {
+        const p = placesStore.places.find((pl) => pl.id === id)
+        return p ? { label: p.name, value: p.id } : { label: `#${id}`, value: id }
+      })
+      selectedTimelineEvents.value = (scene.timeline_events || []).map((id) => {
+        const e = timelineEventsStore.timelineEvents.find((ev) => ev.id === id)
+        return e ? { label: e.title, value: e.id } : { label: `#${id}`, value: id }
+      })
+    } else {
+      selectedCharacters.value = []
+      selectedPlaces.value = []
+      selectedTimelineEvents.value = []
+    }
+  },
+  { immediate: true },
+)
 
 function saveTags() {
   if (!activeScene.value) return
@@ -877,6 +1004,12 @@ async function handleRestore() {
     showRestoreDialog.value = false
     showHistoryDrawer.value = false
   }
+}
+
+const htmlTagRegex = /<[^>]*>/g
+function previewText(content, maxLength = 100) {
+  const text = content ? content.replace(htmlTagRegex, '') : ''
+  return text.length > maxLength ? text.substring(0, maxLength) + '...' : text
 }
 
 // ---- AI Assistant ----
@@ -934,7 +1067,6 @@ function scrollToBottom() {
   }
 }
 
-// Watch for scene changes to reinitialize AI conversation
 watch(activeScene, (scene, oldScene) => {
   if (scene && showAiDrawer.value && scene.id !== oldScene?.id) {
     conversationsStore.reset()
@@ -958,17 +1090,11 @@ function relativeTime(dateStr) {
 </script>
 
 <style scoped>
-.scene-list {
-  overflow-y: auto;
-  flex: 1;
+.drag-handle {
+  touch-action: none;
 }
 
-.scene-list :deep(.sortable-ghost) {
-  opacity: 0.4;
-}
-
-.selected-scene {
-  border-color: var(--q-primary);
-  border-width: 2px;
+.tags-toggle:hover {
+  background: var(--wda-surface-2);
 }
 </style>

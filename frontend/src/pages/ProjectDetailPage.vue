@@ -1,99 +1,93 @@
 <template>
   <q-layout>
     <q-page-container>
-      <q-page class="q-pa-md">
-        <div v-if="fetching" class="text-center q-mt-xl">
-          <q-spinner size="lg" />
-        </div>
-
-        <div v-else-if="notFound" class="text-center q-mt-xl">
-          <div class="text-h5 text-negative q-mb-sm">Project not found</div>
-          <div class="text-grey q-mb-md">
-            This project doesn't exist or you don't have access to it.
+      <q-page>
+        <div class="wda-page">
+          <div
+            style="
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              margin-bottom: 16px;
+            "
+          >
+            <q-btn
+              flat
+              icon="arrow_back"
+              label="Back to Dashboard"
+              to="/dashboard"
+              no-caps
+              style="
+                font-family: var(--wda-font-ui);
+                font-size: 0.85rem;
+                color: var(--wda-text-muted);
+              "
+            />
+            <q-btn
+              flat
+              round
+              :icon="$q.dark.isActive ? 'light_mode' : 'dark_mode'"
+              @click="$q.dark.toggle()"
+              size="sm"
+            />
           </div>
-          <q-btn label="Back to Dashboard" color="primary" to="/dashboard" no-caps />
-        </div>
 
-        <div v-else-if="project">
-          <q-btn
-            flat
-            icon="arrow_back"
-            label="Back to Dashboard"
-            to="/dashboard"
-            no-caps
-            class="q-mb-md"
-          />
-          <div class="text-h4">{{ project.title }}</div>
-          <div class="text-caption text-grey q-mb-lg">
-            Created {{ relativeTime(project.created_at) }}
+          <div v-if="fetching" class="text-center q-mt-xl">
+            <q-spinner size="lg" color="primary" />
           </div>
 
-          <div class="row q-col-gutter-md">
-            <div class="col-12 col-sm-6 col-md-4">
-              <q-card
-                flat
-                bordered
-                class="cursor-pointer"
-                @click="goToWrite"
-              >
-                <q-card-section class="text-center">
-                  <q-icon name="edit_note" size="xl" color="primary" />
-                  <div class="text-h6 q-mt-sm">Start Writing</div>
-                  <div class="text-caption text-grey">Open the manuscript editor</div>
-                </q-card-section>
-              </q-card>
-            </div>
+          <div v-else-if="notFound" class="empty-state">
+            <q-icon name="error_outline" size="3rem" style="color: var(--wda-text-muted)" />
+            <p class="empty-state-title">Project not found</p>
+            <p class="empty-state-desc">
+              This project doesn't exist or you don't have access to it.
+            </p>
+            <q-btn unelevated color="primary" label="Back to Dashboard" to="/dashboard" no-caps />
+          </div>
 
-            <div class="col-12 col-sm-6 col-md-4">
-              <q-card
-                flat
-                bordered
-                class="cursor-pointer"
-                @click="goToStoryBible"
-              >
-                <q-card-section class="text-center">
-                  <q-icon name="menu_book" size="xl" color="primary" />
-                  <div class="text-h6 q-mt-sm">Story Bible</div>
-                  <div class="text-caption text-grey">Manage characters, places, and timeline</div>
-                </q-card-section>
-              </q-card>
-            </div>
+          <div v-else-if="project">
+            <div class="wda-page-title">{{ project.title }}</div>
+            <div class="wda-page-subtitle">Created {{ relativeTime(project.created_at) }}</div>
 
-            <div class="col-12 col-sm-6 col-md-4">
-              <q-card
-                flat
-                bordered
-                class="cursor-pointer"
-                @click="showExportDialog = true"
-              >
-                <q-card-section class="text-center">
-                  <q-icon name="download" size="xl" color="primary" />
-                  <div class="text-h6 q-mt-sm">Export EPUB</div>
-                  <div class="text-caption text-grey">Download your manuscript as an ebook</div>
-                </q-card-section>
-              </q-card>
-            </div>
+            <div class="project-detail-grid">
+              <div class="action-card" @click="goToWrite">
+                <div class="action-icon">
+                  <q-icon name="edit_note" size="2rem" color="primary" />
+                </div>
+                <div class="action-title">Start Writing</div>
+                <div class="action-desc">Open the manuscript editor</div>
+              </div>
 
-            <div class="col-12 col-sm-6 col-md-4">
-              <q-card
-                flat
-                bordered
-                class="cursor-pointer"
-                @click="goToStatistics"
-              >
-                <q-card-section class="text-center">
-                  <q-icon name="bar_chart" size="xl" color="primary" />
-                  <div class="text-h6 q-mt-sm">Statistics</div>
-                  <div class="text-caption text-grey">Track your writing progress</div>
-                </q-card-section>
-              </q-card>
+              <div class="action-card" @click="goToStoryBible">
+                <div class="action-icon">
+                  <q-icon name="menu_book" size="2rem" color="primary" />
+                </div>
+                <div class="action-title">Story Bible</div>
+                <div class="action-desc">Manage characters, places, and timeline</div>
+              </div>
+
+              <div class="action-card" @click="showExportDialog = true">
+                <div class="action-icon">
+                  <q-icon name="download" size="2rem" color="primary" />
+                </div>
+                <div class="action-title">Export EPUB</div>
+                <div class="action-desc">Download your manuscript as an ebook</div>
+              </div>
+
+              <div class="action-card" @click="goToStatistics">
+                <div class="action-icon">
+                  <q-icon name="bar_chart" size="2rem" color="primary" />
+                </div>
+                <div class="action-title">Statistics</div>
+                <div class="action-desc">Track your writing progress</div>
+              </div>
             </div>
           </div>
 
           <ExportDialog
             v-model="showExportDialog"
-            :project-id="project.id"
-            :project-title="project.title"
+            :project-id="project?.id"
+            :project-title="project?.title"
             :scenes="scenes"
           />
         </div>

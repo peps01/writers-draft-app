@@ -1,102 +1,139 @@
 <template>
   <q-layout>
     <q-page-container>
-      <q-page class="q-pa-md">
-        <div class="row items-center justify-between q-mb-md">
-          <div class="text-h5">My Projects</div>
-          <div class="row items-center q-gutter-sm">
-            <span v-if="authStore.user" class="text-grey text-caption">{{ authStore.user.username }}</span>
+      <q-page>
+        <div class="wda-page">
+          <div class="dashboard-header">
+            <div>
+              <div class="wda-page-title">My Projects</div>
+              <div class="wda-page-subtitle" style="margin-bottom: 0">
+                Continue your writing journey
+              </div>
+            </div>
+            <div class="row items-center q-gutter-sm">
+              <q-btn
+                flat
+                round
+                :icon="$q.dark.isActive ? 'light_mode' : 'dark_mode'"
+                @click="$q.dark.toggle()"
+                size="sm"
+              />
+              <span
+                v-if="authStore.user"
+                class="text-caption"
+                style="color: var(--wda-text-muted)"
+                >{{ authStore.user.username }}</span
+              >
+              <q-btn
+                flat
+                dense
+                icon="settings"
+                label="Settings"
+                no-caps
+                to="/settings"
+                style="font-family: var(--wda-font-ui); font-size: 0.85rem"
+              />
+              <q-btn
+                flat
+                dense
+                icon="logout"
+                label="Logout"
+                no-caps
+                @click="handleLogout"
+                style="font-family: var(--wda-font-ui); font-size: 0.85rem"
+              />
+              <q-btn
+                label="New Project"
+                color="primary"
+                icon="add"
+                unelevated
+                @click="showCreateDialog = true"
+                no-caps
+                style="font-family: var(--wda-font-heading); font-size: 0.9rem"
+              />
+            </div>
+          </div>
+
+          <div v-if="store.loading" class="project-grid">
+            <div v-for="n in 6" :key="n" class="wda-card" style="padding: 24px">
+              <q-skeleton type="text" class="text-h6" />
+              <q-skeleton type="text" width="60%" />
+            </div>
+          </div>
+
+          <div v-else-if="store.error && store.projects.length === 0" class="empty-state">
+            <q-icon name="error_outline" size="3rem" style="color: var(--wda-text-muted)" />
+            <p class="empty-state-title">Something went wrong</p>
+            <p class="empty-state-desc">{{ store.error }}</p>
             <q-btn
-              flat
-              dense
-              icon="settings"
-              label="Settings"
-              no-caps
-              to="/settings"
-            />
-            <q-btn
-              flat
-              dense
-              icon="logout"
-              label="Logout"
-              no-caps
-              @click="handleLogout"
-            />
-            <q-btn
-              label="New Project"
+              unelevated
               color="primary"
+              label="Retry"
+              @click="store.fetchProjects()"
+              no-caps
+            />
+          </div>
+
+          <div v-else-if="store.projects.length === 0" class="empty-state">
+            <q-icon name="auto_stories" size="3rem" style="color: var(--wda-text-muted)" />
+            <p class="empty-state-title">Your story starts here</p>
+            <p class="empty-state-desc">Every masterpiece begins with a single word.</p>
+            <q-btn
+              unelevated
+              color="primary"
+              label="Create your first project"
               icon="add"
               @click="showCreateDialog = true"
               no-caps
+              style="font-family: var(--wda-font-heading)"
             />
           </div>
-        </div>
 
-        <div v-if="store.loading" class="row q-col-gutter-md">
-          <div v-for="n in 6" :key="n" class="col-12 col-sm-6 col-md-4">
-            <q-card flat bordered>
-              <q-card-section>
-                <q-skeleton type="text" class="text-h6" />
-                <q-skeleton type="text" width="60%" />
-              </q-card-section>
-            </q-card>
+          <div v-else class="project-grid">
+            <div
+              v-for="project in store.projects"
+              :key="project.id"
+              class="project-card"
+              @click="goToProject(project.id)"
+              :style="{ borderTopColor: accentColors[project.id % accentColors.length] }"
+            >
+              <div class="row items-center justify-between no-wrap">
+                <div class="project-card-title ellipsis">{{ project.title }}</div>
+                <q-btn flat dense round icon="more_vert" size="sm" @click.stop>
+                  <q-menu anchor="bottom-end" self="top-end">
+                    <q-list dense style="min-width: 120px">
+                      <q-item clickable v-close-popup @click.stop="openRename(project)">
+                        <q-item-section>Rename</q-item-section>
+                      </q-item>
+                      <q-item clickable v-close-popup @click.stop="openDelete(project)">
+                        <q-item-section class="text-negative">Delete</q-item-section>
+                      </q-item>
+                    </q-list>
+                  </q-menu>
+                </q-btn>
+              </div>
+              <div v-if="projectStats[project.id]" class="project-card-meta q-mb-sm">
+                ~{{ formatNumber(projectStats[project.id].total_words) }} words &middot;
+                {{ projectStats[project.id].total_scenes }} scenes
+              </div>
+              <div class="project-card-meta">Edited {{ relativeTime(project.updated_at) }}</div>
+            </div>
           </div>
         </div>
 
-        <div v-else-if="store.error && store.projects.length === 0" class="text-center q-mt-xl">
-          <div class="text-negative q-mb-md">{{ store.error }}</div>
-          <q-btn label="Retry" color="primary" @click="store.fetchProjects()" no-caps />
-        </div>
-
-        <div v-else-if="store.projects.length === 0" class="text-center q-mt-xl">
-          <div class="text-h6 q-mb-sm">No projects yet</div>
-          <div class="text-grey q-mb-md">Create your first project to get started.</div>
-          <q-btn
-            label="Create your first project"
-            color="primary"
-            icon="add"
-            @click="showCreateDialog = true"
-            no-caps
-          />
-        </div>
-
-        <div v-else class="row q-col-gutter-md">
-          <div v-for="project in store.projects" :key="project.id" class="col-12 col-sm-6 col-md-4">
-            <q-card flat bordered class="cursor-pointer" @click="goToProject(project.id)">
-              <q-card-section>
-                <div class="row items-center justify-between no-wrap">
-                  <div class="text-h6 ellipsis">{{ project.title }}</div>
-                  <q-btn flat dense round icon="more_vert" size="sm" @click.stop>
-                    <q-menu anchor="bottom-end" self="top-end">
-                      <q-list dense style="min-width: 120px">
-                        <q-item clickable v-close-popup @click.stop="openRename(project)">
-                          <q-item-section>Rename</q-item-section>
-                        </q-item>
-                        <q-item clickable v-close-popup @click.stop="openDelete(project)">
-                          <q-item-section class="text-negative">Delete</q-item-section>
-                        </q-item>
-                      </q-list>
-                    </q-menu>
-                  </q-btn>
-                </div>
-                <div class="text-caption text-grey">
-                  Updated {{ relativeTime(project.updated_at) }}
-                </div>
-              </q-card-section>
-            </q-card>
-          </div>
-        </div>
-
+        <!-- Dialogs -->
         <q-dialog v-model="showCreateDialog" @before-hide="resetCreateForm">
-          <q-card style="min-width: 350px">
+          <q-card class="wda-card" style="min-width: 350px">
             <q-card-section>
-              <div class="text-h6">New Project</div>
+              <div class="text-h6" style="font-family: var(--wda-font-heading)">New Project</div>
             </q-card-section>
             <q-card-section>
               <q-input
                 v-model="createTitle"
                 label="Project title"
                 autofocus
+                outlined
+                color="primary"
                 :error="!!createError"
                 :error-message="createError"
                 @keyup.enter="submitCreate"
@@ -105,6 +142,7 @@
             <q-card-actions align="right">
               <q-btn flat label="Cancel" v-close-popup no-caps />
               <q-btn
+                unelevated
                 color="primary"
                 label="Create"
                 :loading="creating"
@@ -116,15 +154,17 @@
         </q-dialog>
 
         <q-dialog v-model="showRenameDialog">
-          <q-card style="min-width: 350px">
+          <q-card class="wda-card" style="min-width: 350px">
             <q-card-section>
-              <div class="text-h6">Rename Project</div>
+              <div class="text-h6" style="font-family: var(--wda-font-heading)">Rename Project</div>
             </q-card-section>
             <q-card-section>
               <q-input
                 v-model="renameTitle"
                 label="Project title"
                 autofocus
+                outlined
+                color="primary"
                 :error="!!renameError"
                 :error-message="renameError"
                 @keyup.enter="submitRename"
@@ -133,6 +173,7 @@
             <q-card-actions align="right">
               <q-btn flat label="Cancel" v-close-popup no-caps />
               <q-btn
+                unelevated
                 color="primary"
                 label="Save"
                 :loading="renaming"
@@ -144,9 +185,9 @@
         </q-dialog>
 
         <q-dialog v-model="showDeleteDialog">
-          <q-card style="min-width: 350px">
+          <q-card class="wda-card" style="min-width: 350px">
             <q-card-section>
-              <div class="text-h6">Delete Project</div>
+              <div class="text-h6" style="font-family: var(--wda-font-heading)">Delete Project</div>
             </q-card-section>
             <q-card-section>
               <p>
@@ -158,6 +199,7 @@
             <q-card-actions align="right">
               <q-btn flat label="Cancel" v-close-popup no-caps />
               <q-btn
+                unelevated
                 color="negative"
                 label="Delete"
                 :loading="deleting"
@@ -173,18 +215,52 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useProjectsStore } from '@/stores/projects'
 import { useAuthStore } from '@/stores/auth'
+import { api } from '@/boot/axios'
 
 const router = useRouter()
 const store = useProjectsStore()
 const authStore = useAuthStore()
 
-onMounted(() => {
-  store.fetchProjects()
+const projectStats = ref({})
+
+const accentColors = ['#1B3A6B', '#C9A84C', '#2D6A4F', '#C75D3A', '#7B5EA7']
+
+function formatNumber(n) {
+  if (n == null) return '0'
+  return n.toLocaleString()
+}
+
+async function fetchProjectStats() {
+  const fetches = store.projects.map(async (p) => {
+    try {
+      const { data } = await api.get(`/projects/${p.id}/statistics/`)
+      projectStats.value[p.id] = data
+    } catch {
+      // silently ignore
+    }
+  })
+  await Promise.allSettled(fetches)
+}
+
+onMounted(async () => {
+  await store.fetchProjects()
+  if (store.projects.length > 0) {
+    fetchProjectStats()
+  }
 })
+
+watch(
+  () => store.projects.length,
+  (len) => {
+    if (len > 0 && Object.keys(projectStats.value).length === 0) {
+      fetchProjectStats()
+    }
+  },
+)
 
 function relativeTime(dateStr) {
   if (!dateStr) return ''
