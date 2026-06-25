@@ -203,6 +203,7 @@
               >
                 <q-icon :name="showToolbar ? 'expand_less' : 'expand_more'" size="sm" />
                 <span class="text-caption q-ml-xs">Formatting</span>
+                <span v-if="!showToolbar && titleDraft" class="text-caption q-ml-sm" style="opacity:0.6">— {{ titleDraft }}</span>
               </div>
               <template v-if="showToolbar">
                 <EditorToolbar
@@ -406,209 +407,211 @@
       </q-page>
     </q-page-container>
 
-    <!-- Version History Drawer -->
-    <q-drawer v-model="showHistoryDrawer" side="right" behavior="mobile" bordered :width="380">
+    <!-- Right Drawer: Version History / AI Assistant -->
+    <q-drawer v-model="drawerOpen" side="right" behavior="mobile" bordered :width="drawerWidth">
       <div class="q-pa-md" style="height: 100%; display: flex; flex-direction: column">
-        <div class="text-h6 q-mb-md ellipsis" style="font-family: var(--wda-font-heading)">
-          Version History &mdash; {{ activeScene?.title || 'Untitled Scene' }}
-        </div>
+        <template v-if="drawerMode === 'history'">
+          <div class="row items-center justify-between q-mb-md">
+            <div class="text-h6 ellipsis" style="font-family: var(--wda-font-heading)">
+              Version History &mdash; {{ activeScene?.title || 'Untitled Scene' }}
+            </div>
+            <q-btn flat dense round icon="close" size="sm" @click="closeDrawer" />
+          </div>
 
-        <div
-          v-if="sceneVersionsStore.loading && sceneVersionsStore.versions.length === 0"
-          class="text-center q-mt-lg"
-          style="color: var(--wda-text-muted)"
-        >
-          <q-spinner size="md" color="primary" />
-        </div>
+          <div
+            v-if="sceneVersionsStore.loading && sceneVersionsStore.versions.length === 0"
+            class="text-center q-mt-lg"
+            style="color: var(--wda-text-muted)"
+          >
+            <q-spinner size="md" color="primary" />
+          </div>
 
-        <div
-          v-else-if="sceneVersionsStore.versions.length === 0"
-          class="text-center q-mt-lg"
-          style="color: var(--wda-text-muted)"
-        >
-          No versions yet.
-        </div>
+          <div
+            v-else-if="sceneVersionsStore.versions.length === 0"
+            class="text-center q-mt-lg"
+            style="color: var(--wda-text-muted)"
+          >
+            No versions yet.
+          </div>
 
-        <div v-else class="scroll" style="flex: 1; overflow-y: auto">
-          <div v-for="version in sceneVersionsStore.versions" :key="version.id" class="q-mb-sm">
-            <div class="wda-card" style="padding: 12px 16px">
-              <div class="row items-center justify-between no-wrap">
-                <div class="text-caption" style="color: var(--wda-text-muted)">
-                  {{ relativeTime(version.created_at) }}
+          <div v-else class="scroll" style="flex: 1; overflow-y: auto">
+            <div v-for="version in sceneVersionsStore.versions" :key="version.id" class="q-mb-sm">
+              <div class="wda-card" style="padding: 12px 16px">
+                <div class="row items-center justify-between no-wrap">
+                  <div class="text-caption" style="color: var(--wda-text-muted)">
+                    {{ relativeTime(version.created_at) }}
+                  </div>
+                  <q-btn
+                    flat
+                    dense
+                    color="primary"
+                    label="Restore"
+                    size="sm"
+                    no-caps
+                    @click="confirmRestore(version)"
+                  />
                 </div>
-                <q-btn
-                  flat
-                  dense
-                  color="primary"
-                  label="Restore"
-                  size="sm"
-                  no-caps
-                  @click="confirmRestore(version)"
-                />
-              </div>
-              <div class="text-body2 q-mt-xs ellipsis-2-lines" style="color: var(--wda-text-muted)">
-                {{ previewText(version.content) }}
+                <div class="text-body2 q-mt-xs ellipsis-2-lines" style="color: var(--wda-text-muted)">
+                  {{ previewText(version.content) }}
+                </div>
               </div>
             </div>
-          </div>
 
-          <div v-if="sceneVersionsStore.hasMore" class="text-center q-mt-sm">
-            <q-btn
-              flat
-              color="primary"
-              label="Load more"
-              no-caps
-              :loading="sceneVersionsStore.loading"
-              @click="sceneVersionsStore.loadMoreVersions(projectId, activeScene.id)"
-            />
-          </div>
-        </div>
-      </div>
-    </q-drawer>
-
-    <!-- AI Assistant Drawer -->
-    <q-drawer v-model="showAiDrawer" side="right" behavior="mobile" bordered :width="400">
-      <div class="q-pa-md" style="height: 100%; display: flex; flex-direction: column">
-        <div class="row items-center justify-between q-mb-md">
-          <div class="text-h6 ellipsis" style="font-family: var(--wda-font-heading)">
-            AI Assistant &mdash; {{ activeScene?.title || 'Untitled Scene' }}
-          </div>
-          <q-btn flat dense round icon="close" size="sm" @click="closeAiDrawer" />
-        </div>
-
-        <q-banner
-          v-if="showFreeTierWarning"
-          class="bg-warning text-warning q-mb-sm rounded-borders"
-        >
-          <template #avatar>
-            <q-icon name="warning" color="warning" />
-          </template>
-          This AI assistant is running on a free-tier key. Your prompts may be used by Google to
-          improve their models.
-          <template #action>
-            <q-btn
-              flat
-              color="warning"
-              label="Go to Settings"
-              no-caps
-              to="/settings"
-              @click="closeAiDrawer"
-            />
-            <q-btn
-              flat
-              color="warning"
-              label="I understand"
-              no-caps
-              @click="dismissFreeTierWarning"
-            />
-          </template>
-        </q-banner>
-
-        <q-banner
-          v-if="activeScene && !hasStoryBibleTags"
-          class="bg-info text-info q-mb-sm rounded-borders"
-        >
-          <template #avatar>
-            <q-icon name="lightbulb" color="info" />
-          </template>
-          Tag characters, places, and timeline events to this scene for more grounded AI feedback.
-          <template #action>
-            <q-btn
-              flat
-              color="info"
-              label="Story Bible"
-              no-caps
-              :to="`/projects/${projectId}/story-bible`"
-              @click="closeAiDrawer"
-            />
-          </template>
-        </q-banner>
-
-        <template v-if="showNoKeyState">
-          <div class="text-center q-mt-lg text-negative">
-            <q-icon name="error_outline" size="48px" />
-            <div class="text-body1 q-mt-sm">{{ conversationsStore.error }}</div>
-            <q-btn
-              flat
-              color="primary"
-              label="Go to Settings"
-              no-caps
-              to="/settings"
-              class="q-mt-sm"
-              @click="closeAiDrawer"
-            />
+            <div v-if="sceneVersionsStore.hasMore" class="text-center q-mt-sm">
+              <q-btn
+                flat
+                color="primary"
+                label="Load more"
+                no-caps
+                :loading="sceneVersionsStore.loading"
+                @click="sceneVersionsStore.loadMoreVersions(projectId, activeScene.id)"
+              />
+            </div>
           </div>
         </template>
 
-        <q-banner
-          v-else-if="conversationsStore.error && !showNoKeyState"
-          class="bg-negative text-white q-mb-sm rounded-borders"
-        >
-          <template #avatar>
-            <q-icon name="error_outline" color="white" />
-          </template>
-          {{ conversationsStore.error }}
-        </q-banner>
+        <template v-else-if="drawerMode === 'ai'">
+          <div class="row items-center justify-between q-mb-md">
+            <div class="text-h6 ellipsis" style="font-family: var(--wda-font-heading)">
+              AI Assistant &mdash; {{ activeScene?.title || 'Untitled Scene' }}
+            </div>
+            <q-btn flat dense round icon="close" size="sm" @click="closeDrawer" />
+          </div>
 
-        <template v-else>
-          <div ref="messageListRef" class="scroll q-mb-sm" style="flex: 1; overflow-y: auto">
-            <div
-              v-for="msg in conversationsStore.messages"
-              :key="msg.id"
-              class="q-mb-sm"
-              :class="msg.role === 'user' ? 'flex justify-end' : ''"
-            >
-              <q-card
+          <q-banner
+            v-if="showFreeTierWarning"
+            class="bg-warning text-warning q-mb-sm rounded-borders"
+          >
+            <template #avatar>
+              <q-icon name="warning" color="warning" />
+            </template>
+            This AI assistant is running on a free-tier key. Your prompts may be used by Google to
+            improve their models.
+            <template #action>
+              <q-btn
                 flat
-                bordered
-                :class="msg.role === 'user' ? 'bg-primary text-white' : ''"
-                style="max-width: 85%; display: inline-block"
+                color="warning"
+                label="Go to Settings"
+                no-caps
+                to="/settings"
+                @click="closeDrawer"
+              />
+              <q-btn
+                flat
+                color="warning"
+                label="I understand"
+                no-caps
+                @click="dismissFreeTierWarning"
+              />
+            </template>
+          </q-banner>
+
+          <q-banner
+            v-if="activeScene && !hasStoryBibleTags"
+            class="bg-info text-white q-mb-sm rounded-borders"
+          >
+            <div class="row items-center no-wrap">
+              <q-icon name="lightbulb" color="white" size="sm" class="q-mr-sm" />
+              <span>Tag characters, places, and timeline events to this scene for more grounded AI feedback.</span>
+            </div>
+            <template #action>
+              <q-btn
+                flat
+                color="white"
+                label="Story Bible"
+                no-caps
+                :to="`/projects/${projectId}/story-bible`"
+                @click="closeDrawer"
+              />
+            </template>
+          </q-banner>
+
+          <template v-if="showNoKeyState">
+            <div class="text-center q-mt-lg text-negative">
+              <q-icon name="error_outline" size="48px" />
+              <div class="text-body1 q-mt-sm">{{ conversationsStore.error }}</div>
+              <q-btn
+                flat
+                color="primary"
+                label="Go to Settings"
+                no-caps
+                to="/settings"
+                class="q-mt-sm"
+                @click="closeDrawer"
+              />
+            </div>
+          </template>
+
+          <q-banner
+            v-else-if="conversationsStore.error && !showNoKeyState"
+            class="bg-negative text-white q-mb-sm rounded-borders"
+          >
+            <template #avatar>
+              <q-icon name="error_outline" color="white" />
+            </template>
+            {{ conversationsStore.error }}
+          </q-banner>
+
+          <template v-else>
+            <div ref="messageListRef" class="scroll q-mb-sm" style="flex: 1; overflow-y: auto">
+              <div
+                v-for="msg in conversationsStore.messages"
+                :key="msg.id"
+                class="q-mb-sm"
+                :class="msg.role === 'user' ? 'flex justify-end' : ''"
               >
-                <q-card-section class="q-py-sm q-px-md">
-                  <div class="text-body2" style="white-space: pre-wrap">{{ msg.content }}</div>
-                  <div
-                    class="text-caption q-mt-xs"
-                    :class="msg.role === 'user' ? 'text-white text-opacity-70' : 'text-grey'"
-                  >
-                    {{ relativeTime(msg.created_at) }}
-                  </div>
-                </q-card-section>
-              </q-card>
+                <q-card
+                  flat
+                  bordered
+                  :class="msg.role === 'user' ? 'bg-primary text-white' : ''"
+                  style="max-width: 85%; display: inline-block"
+                >
+                  <q-card-section class="q-py-sm q-px-md">
+                    <div class="text-body2" style="white-space: pre-wrap">{{ msg.content }}</div>
+                    <div
+                      class="text-caption q-mt-xs"
+                      :class="msg.role === 'user' ? 'text-white text-opacity-70' : 'text-grey'"
+                    >
+                      {{ relativeTime(msg.created_at) }}
+                    </div>
+                  </q-card-section>
+                </q-card>
+              </div>
+
+              <div v-if="conversationsStore.sending" class="flex justify-start q-mb-sm">
+                <q-card flat bordered style="max-width: 85%; display: inline-block">
+                  <q-card-section class="q-py-sm q-px-md">
+                    <q-spinner-dots size="sm" />
+                    <span class="text-grey q-ml-sm">Thinking...</span>
+                  </q-card-section>
+                </q-card>
+              </div>
             </div>
 
-            <div v-if="conversationsStore.sending" class="flex justify-start q-mb-sm">
-              <q-card flat bordered style="max-width: 85%; display: inline-block">
-                <q-card-section class="q-py-sm q-px-md">
-                  <q-spinner-dots size="sm" />
-                  <span class="text-grey q-ml-sm">Thinking...</span>
-                </q-card-section>
-              </q-card>
+            <div class="row items-end q-gutter-sm">
+              <q-input
+                v-model="messageDraft"
+                type="textarea"
+                autogrow
+                placeholder="Ask the AI assistant..."
+                outlined
+                color="primary"
+                dense
+                class="col"
+                :disable="conversationsStore.sending"
+                @keydown.enter.exact="handleSendMessage"
+                @keydown.shift.enter.prevent
+              />
+              <q-btn
+                round
+                dense
+                color="primary"
+                icon="send"
+                :disable="!messageDraft.trim() || conversationsStore.sending"
+                @click="handleSendMessage"
+              />
             </div>
-          </div>
-
-          <div class="row items-end q-gutter-sm">
-            <q-input
-              v-model="messageDraft"
-              type="textarea"
-              autogrow
-              placeholder="Ask the AI assistant..."
-              outlined
-              color="primary"
-              dense
-              class="col"
-              :disable="conversationsStore.sending"
-              @keydown.enter.exact="handleSendMessage"
-              @keydown.shift.enter.prevent
-            />
-            <q-btn
-              round
-              dense
-              color="primary"
-              icon="send"
-              :disable="!messageDraft.trim() || conversationsStore.sending"
-              @click="handleSendMessage"
-            />
-          </div>
+          </template>
         </template>
       </div>
     </q-drawer>
@@ -851,6 +854,7 @@ function saveTitle() {
 // ---- Content editing with debounced autosave ----
 const sceneContent = ref('')
 let saveTimer = null
+let autoTagTimer = null
 let isExternalUpdate = false
 
 watch(
@@ -882,11 +886,48 @@ watch(sceneContent, (newVal) => {
       scenesStore.updateSceneContent(projectId, activeScene.value.id, newVal)
     }
   }, 2500)
+  if (autoTagTimer) clearTimeout(autoTagTimer)
+  autoTagTimer = setTimeout(() => {
+    autoTagScene(newVal)
+  }, 3000)
 })
 
 onBeforeUnmount(() => {
   if (saveTimer) clearTimeout(saveTimer)
+  if (autoTagTimer) clearTimeout(autoTagTimer)
 })
+
+function autoTagScene(content) {
+  if (!activeScene.value || !content) return
+  const text = content.replace(htmlTagRegex, '').toLowerCase()
+  if (!text.trim()) return
+  let changed = false
+  for (const char of charactersStore.characters) {
+    if (char.name.length < 3) continue
+    if (selectedCharacters.value.some((s) => s.value === char.id)) continue
+    if (text.includes(char.name.toLowerCase())) {
+      selectedCharacters.value.push({ label: char.name, value: char.id })
+      changed = true
+    }
+  }
+  for (const place of placesStore.places) {
+    if (place.name.length < 3) continue
+    if (selectedPlaces.value.some((s) => s.value === place.id)) continue
+    if (text.includes(place.name.toLowerCase())) {
+      selectedPlaces.value.push({ label: place.name, value: place.id })
+      changed = true
+    }
+  }
+  for (const event of timelineEventsStore.timelineEvents) {
+    if (event.title.length < 3) continue
+    if (selectedTimelineEvents.value.some((s) => s.value === event.id)) continue
+    if (text.includes(event.title.toLowerCase())) {
+      selectedTimelineEvents.value.push({ label: event.title, value: event.id })
+      changed = true
+    }
+  }
+  if (changed) saveTags()
+}
 
 // ---- Character/Place/TimelineEvent tagging ----
 const selectedCharacters = ref([])
@@ -967,14 +1008,13 @@ function saveTags() {
 }
 
 // ---- Version History ----
-const showHistoryDrawer = ref(false)
 const showRestoreDialog = ref(false)
 const restoreVersionTarget = ref(null)
 const restorePassword = ref('')
 
 function openHistoryDrawer() {
-  showAiDrawer.value = false
-  showHistoryDrawer.value = true
+  drawerMode.value = 'history'
+  drawerOpen.value = true
   if (activeScene.value) {
     sceneVersionsStore.fetchVersions(projectId, activeScene.value.id)
   }
@@ -1002,7 +1042,7 @@ async function handleRestore() {
   )
   if (!sceneVersionsStore.restoreError) {
     showRestoreDialog.value = false
-    showHistoryDrawer.value = false
+    drawerOpen.value = false
   }
 }
 
@@ -1012,23 +1052,26 @@ function previewText(content, maxLength = 100) {
   return text.length > maxLength ? text.substring(0, maxLength) + '...' : text
 }
 
-// ---- AI Assistant ----
-const showAiDrawer = ref(false)
+// ---- Right Drawer (AI Assistant / Version History) ----
+const drawerOpen = ref(false)
+const drawerMode = ref(null) // 'ai' | 'history' | null
 const messageDraft = ref('')
 const messageListRef = ref(null)
 const showFreeTierWarning = ref(false)
 const showExportDialog = ref(false)
 
+const drawerWidth = computed(() => (drawerMode.value === 'history' ? 380 : 400))
+
 function openAiDrawer() {
-  showHistoryDrawer.value = false
-  showAiDrawer.value = true
+  drawerMode.value = 'ai'
+  drawerOpen.value = true
   if (activeScene.value) {
     initAiConversation(activeScene.value)
   }
 }
 
-function closeAiDrawer() {
-  showAiDrawer.value = false
+function closeDrawer() {
+  drawerOpen.value = false
 }
 
 function dismissFreeTierWarning() {
@@ -1067,8 +1110,13 @@ function scrollToBottom() {
   }
 }
 
+watch(
+  () => conversationsStore.messages.length,
+  () => nextTick(() => scrollToBottom()),
+)
+
 watch(activeScene, (scene, oldScene) => {
-  if (scene && showAiDrawer.value && scene.id !== oldScene?.id) {
+  if (scene && drawerOpen.value && drawerMode.value === 'ai' && scene.id !== oldScene?.id) {
     conversationsStore.reset()
     initAiConversation(scene)
   }
