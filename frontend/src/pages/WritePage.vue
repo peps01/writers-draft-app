@@ -395,7 +395,7 @@
                 no-caps
                 @click="handleRestore"
               />
-            </q-card-actions>
+              </q-card-actions>
           </q-card>
         </q-dialog>
 
@@ -503,7 +503,12 @@
             <div class="text-h6 ellipsis" style="font-family: var(--wda-font-heading)">
               AI Assistant &mdash; {{ activeScene?.title || 'Untitled Scene' }}
             </div>
-            <q-btn flat dense round icon="close" size="sm" @click="closeDrawer" />
+            <div>
+              <q-btn flat dense round :icon="drawerExpanded ? 'chevron_right' : 'chevron_left'" size="sm" @click="toggleDrawerExpand">
+                <q-tooltip>{{ drawerExpanded ? 'Collapse' : 'Expand' }}</q-tooltip>
+              </q-btn>
+              <q-btn flat dense round icon="close" size="sm" @click="closeDrawer" />
+            </div>
           </div>
 
           <q-banner
@@ -586,24 +591,64 @@
                 v-for="msg in conversationsStore.messages"
                 :key="msg.id"
                 class="q-mb-sm"
-                :class="msg.role === 'user' ? 'flex justify-end' : ''"
               >
-                <q-card
-                  flat
-                  bordered
-                  :class="msg.role === 'user' ? 'bg-primary text-white' : ''"
-                  style="max-width: 85%; display: inline-block"
-                >
-                  <q-card-section class="q-py-sm q-px-md">
-                    <div class="text-body2 chat-message-content" v-html="renderMarkdown(msg.content)"></div>
-                    <div
-                      class="text-caption q-mt-xs"
-                      :class="msg.role === 'user' ? 'text-white text-opacity-70' : 'text-grey'"
-                    >
-                      {{ relativeTime(msg.created_at) }}
+                <template v-if="msg.metadata?.type === 'contradiction_check'">
+                  <div class="contradiction-card" style="max-width: 85%">
+                    <div class="contradiction-header row items-center q-gutter-xs q-pa-sm">
+                      <q-icon name="warning" size="sm" color="warning" />
+                      <span class="text-weight-bold">Contradiction Check</span>
+                      <span class="text-caption text-grey">{{ relativeTime(msg.created_at) }}</span>
                     </div>
-                  </q-card-section>
-                </q-card>
+                    <q-separator />
+                    <div v-if="msg.metadata.has_contradictions" class="q-pa-sm">
+                      <div class="text-negative text-weight-bold q-mb-sm">{{ msg.metadata.count }} issue(s) found</div>
+                      <div v-for="(item, i) in msg.metadata.items" :key="i" class="q-mb-md">
+                        <div class="row items-center q-gutter-xs q-mb-xs">
+                          <q-badge :color="severityColor(item.severity)" class="text-uppercase">{{ item.severity }}</q-badge>
+                          <span class="text-caption text-grey">{{ item.category }}</span>
+                        </div>
+                        <div class="text-body2 text-weight-bold q-mb-xs">{{ item.issue }}</div>
+                        <div class="text-caption q-mb-xs">
+                          <span class="text-grey">Story Bible says:</span>
+                          <em>"{{ item.story_bible_says }}"</em>
+                        </div>
+                        <div class="text-caption q-mb-xs">
+                          <span class="text-grey">Scene says:</span>
+                          <em>"{{ item.scene_says }}"</em>
+                        </div>
+                        <q-separator v-if="i < msg.metadata.items.length - 1" class="q-my-sm" />
+                      </div>
+                    </div>
+                    <div v-else class="q-pa-sm">
+                      <q-badge color="positive">All clear</q-badge>
+                      <span class="text-body2 q-ml-sm">No contradictions found. This scene is consistent with your Story Bible.</span>
+                    </div>
+                    <q-separator />
+                    <div class="text-right q-pa-xs">
+                      <q-btn flat dense no-caps color="primary" label="Run again →" size="sm" @click="handleCheckContradictions" />
+                    </div>
+                  </div>
+                </template>
+                <template v-else>
+                  <div :class="msg.role === 'user' ? 'flex justify-end' : ''">
+                    <q-card
+                      flat
+                      bordered
+                      :class="msg.role === 'user' ? 'bg-primary text-white' : ''"
+                      style="max-width: 85%; display: inline-block"
+                    >
+                      <q-card-section class="q-py-sm q-px-md">
+                        <div class="text-body2 chat-message-content" v-html="renderMarkdown(msg.content)"></div>
+                        <div
+                          class="text-caption q-mt-xs"
+                          :class="msg.role === 'user' ? 'text-white text-opacity-70' : 'text-grey'"
+                        >
+                          {{ relativeTime(msg.created_at) }}
+                        </div>
+                      </q-card-section>
+                    </q-card>
+                  </div>
+                </template>
               </div>
 
               <div v-if="conversationsStore.sending" class="flex justify-start q-mb-sm">
@@ -614,7 +659,29 @@
                   </q-card-section>
                 </q-card>
               </div>
+
+              <div v-if="conversationsStore.checkingContradictions" class="flex justify-start q-mb-sm">
+                <q-card flat bordered style="max-width: 85%; display: inline-block">
+                  <q-card-section class="q-py-sm q-px-md">
+                    <q-spinner-dots size="sm" />
+                    <span class="text-grey q-ml-sm">Scanning your scene for contradictions...</span>
+                  </q-card-section>
+                </q-card>
+              </div>
             </div>
+
+            <q-btn
+              flat
+              color="warning"
+              icon="warning"
+              label="Check for Contradictions"
+              no-caps
+              size="sm"
+              class="full-width q-mb-sm"
+              :disable="!activeScene || conversationsStore.sending || conversationsStore.checkingContradictions"
+              :loading="conversationsStore.checkingContradictions"
+              @click="handleCheckContradictions"
+            />
 
             <div class="row items-end q-gutter-sm">
               <q-input
@@ -1118,8 +1185,13 @@ const messageDraft = ref('')
 const messageListRef = ref(null)
 const showFreeTierWarning = ref(false)
 const showExportDialog = ref(false)
+const drawerExpanded = ref(false)
 
-const drawerWidth = computed(() => (drawerMode.value === 'history' ? 380 : 400))
+const drawerWidth = computed(() => {
+  if (drawerMode.value === 'history') return 380
+  if (drawerExpanded.value) return Math.floor(window.innerWidth * 0.5)
+  return 400
+})
 
 function openAiDrawer() {
   drawerMode.value = 'ai'
@@ -1129,8 +1201,13 @@ function openAiDrawer() {
   }
 }
 
+function toggleDrawerExpand() {
+  drawerExpanded.value = !drawerExpanded.value
+}
+
 function closeDrawer() {
   drawerOpen.value = false
+  drawerExpanded.value = false
 }
 
 function dismissFreeTierWarning() {
@@ -1161,6 +1238,21 @@ async function handleSendMessage() {
       showFreeTierWarning.value = true
     }
   }
+}
+
+async function handleCheckContradictions() {
+  if (!activeScene.value || conversationsStore.sending || conversationsStore.checkingContradictions) return
+  await conversationsStore.checkContradictions(projectId, activeScene.value.id)
+  if (!conversationsStore.error) {
+    await nextTick()
+    scrollToBottom()
+  }
+}
+
+function severityColor(severity) {
+  if (severity === 'HIGH') return 'negative'
+  if (severity === 'MEDIUM') return 'warning'
+  return 'grey'
 }
 
 function scrollToBottom() {
@@ -1203,5 +1295,18 @@ function relativeTime(dateStr) {
 
 .tags-toggle:hover {
   background: var(--wda-surface-2);
+}
+
+.contradiction-card {
+  background: var(--wda-surface);
+  border: 1px solid var(--wda-border);
+  border-radius: var(--wda-radius);
+  box-shadow: var(--wda-shadow);
+  display: inline-block;
+  width: 100%;
+}
+
+.contradiction-header {
+  border-radius: var(--wda-radius) var(--wda-radius) 0 0;
 }
 </style>

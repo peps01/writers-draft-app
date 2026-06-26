@@ -25,7 +25,7 @@ from .serializers import (
     ConversationSerializer,
     MessageSerializer,
 )
-from .ai_service import get_ai_response, AIServiceNotConfigured, AIServiceError, resolve_key, GEMINI_MODEL
+from .ai_service import get_ai_response, check_contradictions, AIServiceNotConfigured, AIServiceError, resolve_key, GEMINI_MODEL
 from .export import generate_epub
 
 
@@ -218,6 +218,49 @@ class SceneViewSet(viewsets.ModelViewSet):
                 scene=scene,
                 content=serializer.instance.content,
             )
+
+    @action(detail=True, methods=['post'], url_path='check-contradictions')
+    def check_contradictions(self, request, project_pk=None, pk=None):
+        scene = self.get_object()
+
+        conversation = Conversation.objects.filter(
+            project_id=project_pk,
+            scene=scene,
+        ).first()
+        if not conversation:
+            conversation = Conversation.objects.create(
+                project_id=project_pk,
+                scene=scene,
+            )
+
+        try:
+            result = check_contradictions(
+                user=request.user,
+                scene=scene,
+            )
+        except AIServiceNotConfigured as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        except AIServiceError as e:
+            msg = str(e)
+            if 'quota' in msg.lower() or 'resource_exhausted' in msg.lower():
+                msg = 'AI service quota exceeded. Try again later or use a different API key.'
+            return Response(
+                {'error': msg},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        assistant_message = Message.objects.create(
+            conversation=conversation,
+            role='assistant',
+            content=result['reply'],
+            metadata=result['parsed'],
+        )
+
+        serializer = MessageSerializer(assistant_message)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 class VersionPagination(PageNumberPagination):

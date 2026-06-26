@@ -133,3 +133,139 @@ def get_ai_response(user, scene_id, conversation_id, new_message_content):
         'reply': response.text,
         'is_free_tier': is_free,
     }
+
+
+CONTRADICTION_SYSTEM_PROMPT = """You are a story consistency checker for a novelist.
+Your ONLY job right now is to find contradictions between the scene content
+and the Story Bible facts listed below. Do not offer writing advice.
+Do not suggest improvements. Only flag contradictions.
+
+For each contradiction found, output it in this exact format:
+SEVERITY: [HIGH / MEDIUM / LOW]
+CATEGORY: [Character / Place / Timeline]
+ISSUE: One sentence describing the contradiction precisely.
+STORY BIBLE SAYS: Quote the relevant part of the Story Bible entry.
+SCENE SAYS: Quote the relevant part of the scene that conflicts.
+
+Severity guide:
+HIGH = Clear factual conflict (wrong eye color, wrong location, dead character alive).
+MEDIUM = Likely conflict but context could explain it (behavior out of character).
+LOW = Possible conflict — flag it but note that the writer should verify.
+
+If NO contradictions are found, respond with exactly:
+NO CONTRADICTIONS FOUND — The scene is consistent with the Story Bible."""
+
+
+def _parse_contradiction_response(text):
+    text = text.strip()
+
+    if 'NO CONTRADICTIONS FOUND' in text:
+        return {
+            'type': 'contradiction_check',
+            'has_contradictions': False,
+            'count': 0,
+            'items': [],
+        }
+
+    blocks = re.split(r'\n(?=SEVERITY:)', text)
+    items = []
+
+    for block in blocks:
+        block = block.strip()
+        if not block or not block.startswith('SEVERITY:'):
+            continue
+
+        severity = ''
+        category = ''
+        issue = ''
+        sb_says = ''
+        scene_says = ''
+
+        for line in block.split('\n'):
+            ls = line.strip()
+            if ls.startswith('SEVERITY:'):
+                severity = ls[len('SEVERITY:'):].strip()
+            elif ls.startswith('CATEGORY:'):
+                category = ls[len('CATEGORY:'):].strip()
+            elif ls.startswith('ISSUE:'):
+                issue = ls[len('ISSUE:'):].strip()
+            elif ls.startswith('STORY BIBLE SAYS:'):
+                sb_says = ls[len('STORY BIBLE SAYS:'):].strip()
+            elif ls.startswith('SCENE SAYS:'):
+                scene_says = ls[len('SCENE SAYS:'):].strip()
+
+        if severity:
+            items.append({
+                'severity': severity,
+                'category': category,
+                'issue': issue,
+                'story_bible_says': sb_says,
+                'scene_says': scene_says,
+            })
+
+    return {
+        'type': 'contradiction_check',
+        'has_contradictions': len(items) > 0,
+        'count': len(items),
+        'items': items,
+        'parse_error': len(items) == 0 and bool(text),
+    }
+
+
+def check_contradictions(user, scene):
+    key, is_free = resolve_key(user)
+    project = scene.project
+
+    characters = project.characters.all()
+    places = project.places.all()
+    timeline_events = project.timeline_events.all()
+
+    parts = [CONTRADICTION_SYSTEM_PROMPT]
+    parts.append("\n\n--- FULL STORY BIBLE ---")
+
+    parts.append("\n\nCHARACTERS:")
+    for c in characters:
+        parts.append(f"\n- {c.name}: {c.description}")
+
+    parts.append("\n\nPLACES:")
+    for p in places:
+        parts.append(f"\n- {p.name}: {p.description}")
+
+    parts.append("\n\nTIMELINE EVENTS:")
+    for i, e in enumerate(timeline_events, 1):
+        parts.append(f"\n{i}. {e.title}: {e.description}")
+
+    if scene.content:
+        plain = re.sub(r'<[^>]+>', '', scene.content)
+        parts.append(f"\n\n--- SCENE CONTENT ---\n{plain}")
+    else:
+        parts.append("\n\n--- SCENE CONTENT ---\nThe scene has no written content yet.")
+
+    parts.append("\n\n--- END ---")
+
+    full_prompt = "".join(parts)
+
+    genai.configure(api_key=key)
+    model = genai.GenerativeModel(
+        model_name=GEMINI_MODEL,
+        system_instruction="You are a story consistency checker. Only flag contradictions.",
+    )
+
+    try:
+        safety_settings = {
+            HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+            HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+            HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+            HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+        }
+        response = model.generate_content(full_prompt, safety_settings=safety_settings)
+    except Exception as e:
+        raise AIServiceError(str(e)) from e
+
+    reply = response.text
+    parsed = _parse_contradiction_response(reply)
+
+    return {
+        'reply': reply,
+        'parsed': parsed,
+    }
