@@ -2,7 +2,7 @@
   <q-layout>
     <q-page-container>
       <q-page>
-        <div class="wda-page">
+        <div class="wda-page wda-page--full">
           <div
             style="
               display: flex;

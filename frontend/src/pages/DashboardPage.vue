@@ -2,7 +2,7 @@
   <q-layout>
     <q-page-container>
       <q-page>
-        <div class="wda-page">
+        <div class="wda-page wda-page--full">
           <div class="dashboard-header">
             <div>
               <div class="wda-page-title">My Projects</div>
@@ -116,7 +116,7 @@
                 ~{{ formatNumber(projectStats[project.id].total_words) }} words &middot;
                 {{ projectStats[project.id].total_scenes }} scenes
               </div>
-              <div class="project-card-meta">Edited {{ relativeTime(project.updated_at) }}</div>
+              <div class="project-card-meta">Created {{ relativeTime(project.created_at) }}</div>
             </div>
           </div>
         </div>
@@ -262,18 +262,42 @@ watch(
   },
 )
 
+function pluralize(count, word) {
+  return `${count} ${word}${count === 1 ? '' : 's'}`
+}
+
 function relativeTime(dateStr) {
   if (!dateStr) return ''
-  const now = Date.now()
-  const then = new Date(dateStr).getTime()
-  const diff = Math.floor((now - then) / 1000)
+  const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000)
 
-  if (diff < 60) return 'just now'
-  if (diff < 3600) return `${Math.floor(diff / 60)} minute(s) ago`
-  if (diff < 86400) return `${Math.floor(diff / 3600)} hour(s) ago`
-  if (diff < 2592000) return `${Math.floor(diff / 86400)} day(s) ago`
-  if (diff < 31536000) return `${Math.floor(diff / 2592000)} month(s) ago`
-  return `${Math.floor(diff / 31536000)} year(s) ago`
+  if (seconds < 60) return 'just now'
+
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return pluralize(minutes, 'minute')
+
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return pluralize(hours, 'hour')
+
+  const days = Math.floor(hours / 24)
+  const remainHours = hours % 24
+  if (days === 1 && remainHours > 0) {
+    return `1 day and ${pluralize(remainHours, 'hour')}`
+  }
+
+  if (days < 7) return pluralize(days, 'day')
+
+  const weeks = Math.floor(days / 7)
+  const remainDays = days % 7
+  if (weeks === 1 && remainDays > 0) {
+    return `1 week and ${pluralize(remainDays, 'day')}`
+  }
+
+  if (days < 30) return pluralize(weeks, 'week')
+
+  const months = Math.floor(days / 30)
+  if (months < 12) return pluralize(months, 'month')
+
+  return pluralize(Math.floor(days / 365), 'year')
 }
 
 function goToProject(id) {

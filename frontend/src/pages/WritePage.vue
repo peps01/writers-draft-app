@@ -253,6 +253,7 @@
                     timelineEventOptions.length > 0
                   "
                   class="row q-gutter-md q-mt-xs items-start q-px-md q-pb-md"
+                  style="max-height: 200px; overflow-y: auto; flex-shrink: 0"
                 >
                   <q-select
                     v-model="selectedCharacters"
@@ -393,6 +394,33 @@
                 :loading="sceneVersionsStore.restoring"
                 no-caps
                 @click="handleRestore"
+              />
+            </q-card-actions>
+          </q-card>
+        </q-dialog>
+
+        <!-- Reorder Confirmation Dialog -->
+        <q-dialog v-model="showReorderConfirm" @hide="onReorderDialogHide">
+          <q-card class="wda-card" style="min-width: 350px">
+            <q-card-section class="row items-center q-gutter-sm">
+              <q-icon name="swap_vert" size="md" color="primary" />
+              <div>
+                <div class="text-h6" style="font-family: var(--wda-font-heading)">
+                  Reorder Scenes
+                </div>
+                <div class="text-body2 text-grey">
+                  Are you sure you want to change the scene order?
+                </div>
+              </div>
+            </q-card-section>
+            <q-card-actions align="right">
+              <q-btn flat label="Cancel" no-caps @click="cancelReorder" />
+              <q-btn
+                unelevated
+                color="primary"
+                label="Save Order"
+                no-caps
+                @click="confirmReorder"
               />
             </q-card-actions>
           </q-card>
@@ -567,7 +595,7 @@
                   style="max-width: 85%; display: inline-block"
                 >
                   <q-card-section class="q-py-sm q-px-md">
-                    <div class="text-body2" style="white-space: pre-wrap">{{ msg.content }}</div>
+                    <div class="text-body2 chat-message-content" v-html="renderMarkdown(msg.content)"></div>
                     <div
                       class="text-caption q-mt-xs"
                       :class="msg.role === 'user' ? 'text-white text-opacity-70' : 'text-grey'"
@@ -632,6 +660,7 @@ import { useCharactersStore } from '@/stores/characters'
 import { usePlacesStore } from '@/stores/places'
 import { useTimelineEventsStore } from '@/stores/timelineEvents'
 import Sortable from 'sortablejs'
+import { renderMarkdown } from '@/utils/markdown'
 
 const route = useRoute()
 const projectId = route.params.id
@@ -746,6 +775,9 @@ onMounted(async () => {
 const sceneListContainer = ref(null)
 const reordering = ref(false)
 let sortableInstance = null
+const showReorderConfirm = ref(false)
+const pendingReorderIds = ref([])
+let originalOrder = []
 
 function initSortable() {
   if (!sceneListContainer.value) return
@@ -754,19 +786,46 @@ function initSortable() {
     animation: 200,
     handle: '.drag-handle',
     dataIdAttr: 'data-id',
-    onEnd: async () => {
-      reordering.value = true
-      const orderedIds = sortableInstance.toArray().map(Number)
-      try {
-        await scenesStore.reorderScenes(projectId, orderedIds)
-      } catch {
-        // Store already refetched
-      } finally {
-        reordering.value = false
-        nextTick(() => initSortable())
-      }
+    onStart: () => {
+      originalOrder = scenesStore.scenes.map((s) => s.id)
+    },
+    onEnd: () => {
+      pendingReorderIds.value = sortableInstance.toArray().map(Number)
+      showReorderConfirm.value = true
     },
   })
+}
+
+function confirmReorder() {
+  showReorderConfirm.value = false
+  reordering.value = true
+  const orderedIds = pendingReorderIds.value
+  pendingReorderIds.value = []
+  ;(async () => {
+    try {
+      await scenesStore.reorderScenes(projectId, orderedIds)
+    } catch {
+      // Store already refetched
+    } finally {
+      reordering.value = false
+      nextTick(() => initSortable())
+    }
+  })()
+}
+
+function cancelReorder() {
+  showReorderConfirm.value = false
+  pendingReorderIds.value = []
+  if (sortableInstance) {
+    sortableInstance.sort(originalOrder.map(String))
+  }
+  originalOrder = []
+}
+
+function onReorderDialogHide() {
+  if (pendingReorderIds.value.length > 0) {
+    cancelReorder()
+  }
 }
 
 function destroySortable() {
