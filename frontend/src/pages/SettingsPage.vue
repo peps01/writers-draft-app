@@ -1,303 +1,278 @@
 <template>
-  <q-layout>
-    <q-page-container>
-      <q-page>
-        <div class="wda-page" style="max-width: 700px">
-          <div
-            style="
-              display: flex;
-              align-items: center;
-              justify-content: space-between;
-              margin-bottom: 16px;
-            "
-          >
-            <q-btn
-              flat
-              icon="arrow_back"
-              label="Back to Dashboard"
-              to="/dashboard"
-              no-caps
-              style="
-                font-family: var(--wda-font-ui);
-                font-size: 0.85rem;
-                color: var(--wda-text-muted);
-              "
-            />
-            <q-btn
-              flat
-              round
-              :icon="$q.dark.isActive ? 'light_mode' : 'dark_mode'"
-              @click="$q.dark.toggle()"
-              size="sm"
-            />
-          </div>
+  <q-page class="settings-page">
+    <div class="settings-header">
+      <div>
+        <div class="wda-page-title">Settings</div>
+        <div class="settings-subtitle">Configure your writing experience</div>
+      </div>
+    </div>
 
-          <div class="wda-page-title">Settings</div>
-          <div class="wda-page-subtitle">Configure your writing experience</div>
+    <div class="settings-card">
+      <div class="settings-card-left">
+        <div class="card-title q-mb-sm">AI Assistant Settings</div>
+        <div class="text-description q-mb-md">
+          By default, Writer's Draft App uses a shared free-tier Gemini API key. You can provide
+          your own key for higher limits or data privacy.
+        </div>
 
-          <div class="settings-section">
-            <div class="settings-section-title">AI Assistant Settings</div>
-            <div class="settings-section-desc">
-              By default, Writer's Draft App uses a shared free-tier Gemini API key. You can provide
-              your own key for higher limits or data privacy.
-            </div>
-
-            <template v-if="keyUiState === 'empty'">
-              <q-input
-                v-model="keyInputValue"
-                :type="showKey ? 'text' : 'password'"
-                label="Your Gemini API Key"
-                placeholder="Enter your Gemini API key"
-                outlined
-                color="primary"
-                dense
-                class="q-mb-md"
-                :error="!!keyError"
-                :error-message="keyError"
-              >
-                <template #append>
-                  <q-btn
-                    flat
-                    dense
-                    round
-                    :icon="showKey ? 'visibility_off' : 'visibility'"
-                    @click="showKey = !showKey"
-                  />
-                </template>
-              </q-input>
-
-              <q-checkbox
-                v-model="isPaidTier"
-                label="I'm using a paid-tier key (my data won't be used for model training)."
-                class="q-mb-md"
-              />
-
-              <div class="row q-gutter-sm items-center">
-                <q-btn
-                  unelevated
-                  color="primary"
-                  label="Save Key"
-                  no-caps
-                  :disable="!keyInputValue.trim()"
-                  :loading="keySaving"
-                  @click="saveKey"
-                />
-                <q-btn
-                  flat
-                  dense
-                  size="sm"
-                  label="Re-test connection"
-                  no-caps
-                  @click="runConnectionTest"
-                />
-              </div>
-            </template>
-
-            <template v-else-if="keyUiState === 'locked'">
-              <q-input
-                :model-value="maskedPreview"
-                label="Your Gemini API Key"
-                outlined
-                color="primary"
-                dense
-                disable
-                class="q-mb-md"
-              >
-                <template #append>
-                  <q-icon name="lock" color="primary" size="sm" class="q-mr-xs" />
-                  <q-btn
-                    flat
-                    dense
-                    round
-                    :icon="showKey ? 'visibility_off' : 'visibility'"
-                    @click="showKey = !showKey"
-                  />
-                </template>
-              </q-input>
-
-              <q-checkbox
-                v-model="isPaidTier"
-                label="I'm using a paid-tier key (my data won't be used for model training)."
-                class="q-mb-md"
-              />
-              <q-btn
-                v-if="paidTierDirty"
-                flat
-                dense
-                size="sm"
-                color="primary"
-                label="Save"
-                no-caps
-                :loading="keySaving"
-                @click="savePaidTier"
-                class="q-mb-md"
-              />
-
-              <div class="row q-gutter-sm q-mb-md">
-                <q-btn color="primary" label="Change Key" no-caps outline @click="startEditing" />
-                <q-btn
-                  flat
-                  color="negative"
-                  label="Remove Key"
-                  no-caps
-                  @click="showRemoveDialog = true"
-                />
-                <q-btn
-                  flat
-                  dense
-                  size="sm"
-                  label="Re-test connection"
-                  no-caps
-                  @click="runConnectionTest"
-                />
-              </div>
-            </template>
-
-            <template v-else-if="keyUiState === 'editing'">
-              <q-input
-                v-model="keyInputValue"
-                :type="showKey ? 'text' : 'password'"
-                label="Your Gemini API Key"
-                placeholder="Enter new Gemini API key"
-                outlined
-                color="primary"
-                dense
-                class="q-mb-md"
-                :error="!!keyError"
-                :error-message="keyError"
-              >
-                <template #append>
-                  <q-icon name="lock_open" color="orange" size="sm" class="q-mr-xs" />
-                  <q-btn
-                    flat
-                    dense
-                    round
-                    :icon="showKey ? 'visibility_off' : 'visibility'"
-                    @click="showKey = !showKey"
-                  />
-                </template>
-              </q-input>
-
-              <q-checkbox
-                v-model="isPaidTier"
-                label="I'm using a paid-tier key (my data won't be used for model training)."
-                class="q-mb-md"
-              />
-
-              <div class="row q-gutter-sm items-center">
-                <q-btn
-                  unelevated
-                  color="primary"
-                  label="Save Key"
-                  no-caps
-                  :disable="!keyInputValue.trim()"
-                  :loading="keySaving"
-                  @click="saveKey"
-                />
-                <q-btn flat label="Cancel" no-caps @click="cancelEditing" />
-                <q-btn
-                  flat
-                  dense
-                  size="sm"
-                  label="Re-test connection"
-                  no-caps
-                  @click="runConnectionTest"
-                />
-              </div>
-            </template>
-
-            <q-banner
-              v-if="connectionStatus"
-              :class="connectionBannerClass"
-              class="q-mt-md rounded-borders"
-            >
-              <template #avatar>
-                <q-spinner v-if="connectionStatus.status === 'testing'" size="sm" />
-                <q-icon v-else :name="connectionIcon" :color="connectionColor" />
-              </template>
-              <div class="text-body2">{{ connectionTitle }}</div>
-              <div class="text-caption">{{ connectionSubtitle }}</div>
-            </q-banner>
-          </div>
-
-          <div class="settings-section">
-            <div class="settings-section-title">Writing Goal</div>
-            <div class="settings-section-desc">
-              Set a daily word count target to keep yourself motivated.
-            </div>
-
-            <q-toggle
-              v-model="showWordGoal"
-              label="Show daily word count goal"
-              class="q-mb-md"
-              color="primary"
-            />
-
+        <div class="settings-ai-content">
+          <template v-if="keyUiState === 'empty'">
             <q-input
-              v-if="showWordGoal"
-              v-model.number="dailyWordGoal"
-              type="number"
-              label="Daily word goal"
-              placeholder="e.g. 1000"
+              v-model="keyInputValue"
+              :type="showKey ? 'text' : 'password'"
+              label="Your Gemini API Key"
+              placeholder="Enter your Gemini API key"
               outlined
               color="primary"
               dense
-              :min="1"
-              :max="10000"
+              class="q-mb-md"
+              :error="!!keyError"
+              :error-message="keyError"
+            >
+              <template #append>
+                <q-btn
+                  flat
+                  dense
+                  round
+                  :icon="showKey ? 'visibility_off' : 'visibility'"
+                  @click="showKey = !showKey"
+                />
+              </template>
+            </q-input>
+
+            <q-checkbox
+              v-model="isPaidTier"
+              label="I'm using a paid-tier key (my data won't be used for model training)."
               class="q-mb-md"
             />
 
-            <div style="color: var(--wda-text-muted); font-size: 0.85rem; margin-bottom: 16px">
-              <template v-if="!showWordGoal"> Goal tracking is off. </template>
-              <template v-else>
-                Goal: {{ formatNumber(dailyWordGoal || 1000) }} words/day &mdash; currently showing
-                on Statistics page.
-              </template>
+            <div class="row q-gutter-sm items-center">
+              <q-btn
+                unelevated
+                color="primary"
+                label="Save Key"
+                no-caps
+                :disable="!keyInputValue.trim()"
+                :loading="keySaving"
+                @click="saveKey"
+              />
+              <q-btn
+                flat
+                dense
+                size="sm"
+                label="Re-test connection"
+                no-caps
+                @click="runConnectionTest"
+              />
             </div>
+          </template>
 
-            <div v-if="goalError" class="text-negative q-mb-md">{{ goalError }}</div>
-            <div v-if="goalSuccess" class="text-positive q-mb-md">{{ goalSuccess }}</div>
+          <template v-else-if="keyUiState === 'locked'">
+            <q-input
+              :model-value="maskedPreview"
+              label="Your Gemini API Key"
+              outlined
+              color="primary"
+              dense
+              disable
+              class="q-mb-md"
+            >
+              <template #append>
+                <q-icon name="lock" color="primary" size="sm" class="q-mr-xs" />
+                <q-btn
+                  flat
+                  dense
+                  round
+                  :icon="showKey ? 'visibility_off' : 'visibility'"
+                  @click="showKey = !showKey"
+                />
+              </template>
+            </q-input>
 
+            <q-checkbox
+              v-model="isPaidTier"
+              label="I'm using a paid-tier key (my data won't be used for model training)."
+              class="q-mb-md"
+            />
             <q-btn
-              unelevated
+              v-if="paidTierDirty"
+              flat
+              dense
+              size="sm"
               color="primary"
               label="Save"
               no-caps
-              :loading="goalSaving"
-              @click="saveGoal"
+              :loading="keySaving"
+              @click="savePaidTier"
+              class="q-mb-md"
             />
-          </div>
 
-          <q-dialog v-model="showRemoveDialog">
-            <q-card class="wda-card" style="min-width: 400px">
-              <q-card-section>
-                <div class="text-h6" style="font-family: var(--wda-font-heading)">
-                  Remove API Key
-                </div>
-              </q-card-section>
-              <q-card-section>
-                <p>
-                  Remove your custom API key? The app will revert to using the shared default
-                  free-tier key.
-                </p>
-              </q-card-section>
-              <q-card-actions align="right">
-                <q-btn flat label="Cancel" v-close-popup no-caps />
+            <div class="row q-gutter-sm q-mb-md">
+              <q-btn color="primary" label="Change Key" no-caps outline @click="startEditing" />
+              <q-btn
+                flat
+                color="negative"
+                label="Remove Key"
+                no-caps
+                @click="showRemoveDialog = true"
+              />
+              <q-btn
+                flat
+                dense
+                size="sm"
+                label="Re-test connection"
+                no-caps
+                @click="runConnectionTest"
+              />
+            </div>
+          </template>
+
+          <template v-else-if="keyUiState === 'editing'">
+            <q-input
+              v-model="keyInputValue"
+              :type="showKey ? 'text' : 'password'"
+              label="Your Gemini API Key"
+              placeholder="Enter new Gemini API key"
+              outlined
+              color="primary"
+              dense
+              class="q-mb-md"
+              :error="!!keyError"
+              :error-message="keyError"
+            >
+              <template #append>
+                <q-icon name="lock_open" color="orange" size="sm" class="q-mr-xs" />
                 <q-btn
-                  unelevated
-                  color="negative"
-                  label="Remove"
-                  no-caps
-                  :loading="keySaving"
-                  @click="confirmRemoveKey"
+                  flat
+                  dense
+                  round
+                  :icon="showKey ? 'visibility_off' : 'visibility'"
+                  @click="showKey = !showKey"
                 />
-              </q-card-actions>
-            </q-card>
-          </q-dialog>
+              </template>
+            </q-input>
+
+            <q-checkbox
+              v-model="isPaidTier"
+              label="I'm using a paid-tier key (my data won't be used for model training)."
+              class="q-mb-md"
+            />
+
+            <div class="row q-gutter-sm items-center">
+              <q-btn
+                unelevated
+                color="primary"
+                label="Save Key"
+                no-caps
+                :disable="!keyInputValue.trim()"
+                :loading="keySaving"
+                @click="saveKey"
+              />
+              <q-btn flat label="Cancel" no-caps @click="cancelEditing" />
+              <q-btn
+                flat
+                dense
+                size="sm"
+                label="Re-test connection"
+                no-caps
+                @click="runConnectionTest"
+              />
+            </div>
+          </template>
+
+          <q-banner
+            v-if="connectionStatus"
+            :class="connectionBannerClass"
+            class="q-mt-md rounded-borders"
+          >
+            <template #avatar>
+              <q-spinner v-if="connectionStatus.status === 'testing'" size="sm" />
+              <q-icon v-else :name="connectionIcon" :color="connectionColor" />
+            </template>
+            <div class="text-body2">{{ connectionTitle }}</div>
+            <div class="text-caption">{{ connectionSubtitle }}</div>
+          </q-banner>
         </div>
-      </q-page>
-    </q-page-container>
-  </q-layout>
+      </div>
+
+      <div class="settings-card-divider" />
+
+      <div class="settings-card-right">
+        <div class="card-title q-mb-sm">Writing Goal</div>
+        <div class="text-description q-mb-md">
+          Set a daily word count target to keep yourself motivated.
+        </div>
+
+        <q-toggle
+          v-model="showWordGoal"
+          label="Show daily word count goal"
+          class="q-mb-md"
+          color="primary"
+        />
+
+        <q-input
+          v-if="showWordGoal"
+          v-model.number="dailyWordGoal"
+          type="number"
+          label="Daily word goal"
+          placeholder="e.g. 1000"
+          outlined
+          color="primary"
+          dense
+          :min="1"
+          :max="10000"
+          class="q-mb-md"
+        />
+
+        <div style="color: var(--wda-text-muted); font-size: 0.85rem; margin-bottom: 16px">
+          <template v-if="!showWordGoal"> Goal tracking is off. </template>
+          <template v-else>
+            Goal: {{ formatNumber(dailyWordGoal || 1000) }} words/day &mdash; currently showing
+            on Statistics page.
+          </template>
+        </div>
+
+        <div v-if="goalError" class="text-negative q-mb-md">{{ goalError }}</div>
+        <div v-if="goalSuccess" class="text-positive q-mb-md">{{ goalSuccess }}</div>
+
+        <q-btn
+          unelevated
+          color="primary"
+          label="Save"
+          no-caps
+          :loading="goalSaving"
+          @click="saveGoal"
+        />
+      </div>
+    </div>
+
+    <q-dialog v-model="showRemoveDialog">
+      <q-card class="wda-card" style="min-width: 400px">
+        <q-card-section>
+          <div class="text-h6" style="font-family: var(--wda-font-heading)">
+            Remove API Key
+          </div>
+        </q-card-section>
+        <q-card-section>
+          <p>
+            Remove your custom API key? The app will revert to using the shared default
+            free-tier key.
+          </p>
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat label="Cancel" v-close-popup no-caps />
+          <q-btn
+            unelevated
+            color="negative"
+            label="Remove"
+            no-caps
+            :loading="keySaving"
+            @click="confirmRemoveKey"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+  </q-page>
 </template>
 
 <script setup>
@@ -536,3 +511,66 @@ async function saveGoal() {
   }
 }
 </script>
+
+<style scoped>
+.settings-page {
+  min-height: 100vh;
+  background: var(--wda-bg);
+  display: flex;
+  flex-direction: column;
+  padding: 32px 40px;
+}
+
+.settings-header {
+  margin-bottom: 24px;
+  flex-shrink: 0;
+}
+
+.settings-subtitle {
+  font-family: var(--wda-font-ui);
+  font-size: 14px;
+  color: var(--wda-text-muted);
+  margin-bottom: 0;
+}
+
+.settings-card {
+  flex: 1;
+  display: flex;
+  gap: 0;
+  background: var(--wda-surface);
+  border: 1px solid var(--wda-border);
+  border-radius: var(--wda-radius);
+  box-shadow: var(--wda-shadow);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.settings-card-left {
+  flex: 1;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+.settings-card-right {
+  width: 320px;
+  flex-shrink: 0;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+.settings-card-divider {
+  width: 1px;
+  flex-shrink: 0;
+  background: var(--wda-border);
+}
+
+.settings-ai-content {
+  flex: 1;
+}
+</style>

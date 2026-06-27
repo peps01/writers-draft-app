@@ -6,6 +6,7 @@ export const useProjectsStore = defineStore('projects', () => {
   const projects = ref([])
   const loading = ref(false)
   const error = ref(null)
+  const selectedProjectId = ref(null)
 
   async function fetchProjects() {
     error.value = null
@@ -38,15 +39,35 @@ export const useProjectsStore = defineStore('projects', () => {
     }
   }
 
-  async function createProject(title) {
+  async function createProject(formData) {
     error.value = null
     try {
-      const { data } = await api.post('/projects/', { title })
+      const { data } = await api.post('/projects/', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
       projects.value.push(data)
       return data
     } catch (err) {
       error.value =
         err.response?.data?.title?.[0] || err.response?.data?.detail || 'Failed to create project.'
+      throw err
+    }
+  }
+
+  async function updateProject(id, formData) {
+    error.value = null
+    try {
+      const { data } = await api.patch(`/projects/${id}/`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      const idx = projects.value.findIndex((p) => p.id === id)
+      if (idx !== -1) {
+        projects.value[idx] = data
+      }
+      return data
+    } catch (err) {
+      error.value =
+        err.response?.data?.title?.[0] || err.response?.data?.detail || 'Failed to update project.'
       throw err
     }
   }
@@ -86,9 +107,11 @@ export const useProjectsStore = defineStore('projects', () => {
     projects,
     loading,
     error,
+    selectedProjectId,
     fetchProjects,
     fetchProject,
     createProject,
+    updateProject,
     renameProject,
     deleteProject,
     clearError,

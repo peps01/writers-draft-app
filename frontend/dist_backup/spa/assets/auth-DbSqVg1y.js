@@ -1,0 +1,1 @@
+import{r as e,t}from"./index-b1jX0r-p.js";var n=e(async()=>{await t().fetchCurrentUser()});export{n as default};

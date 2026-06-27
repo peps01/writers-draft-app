@@ -1,0 +1,1 @@
+import{v as e}from"./index-b1jX0r-p.js";var t=()=>{localStorage.getItem(`wda_dark_mode`)===`true`&&e.set(!0)};export{t as default};

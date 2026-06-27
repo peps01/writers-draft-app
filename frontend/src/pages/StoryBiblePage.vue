@@ -1,467 +1,434 @@
 <template>
-  <q-layout>
-    <q-page-container>
-      <q-page>
-        <div class="wda-page wda-page--full">
+  <q-page>
+    <div class="wda-page wda-page--full">
+      <q-tabs v-model="tab" @update:model-value="onTabChange">
+        <q-tab name="characters" label="Characters" icon="people" />
+        <q-tab name="places" label="Places" icon="place" />
+        <q-tab name="timeline" label="Timeline" icon="timeline" />
+      </q-tabs>
+
+      <q-tab-panels v-model="tab" animated>
+        <!-- Characters -->
+        <q-tab-panel name="characters">
+          <div class="tab-header">
+            <div class="tab-title">Characters</div>
+            <div class="tab-actions">
+              <q-btn-toggle
+                v-model="viewModeChar"
+                flat
+                dense
+                :options="[
+                  { value: 'grid', icon: 'grid_view' },
+                  { value: 'list', icon: 'list' },
+                ]"
+                @update:model-value="persistViewMode('characters', $event)"
+              />
+              <q-btn
+                unelevated
+                dense
+                icon="add"
+                label="Add Character"
+                color="primary"
+                no-caps
+                @click="openCreateEntity('characters')"
+                style="font-family: var(--wda-font-ui); font-size: 0.85rem"
+              />
+            </div>
+          </div>
+
+          <div v-if="charactersStore.loading" class="entity-grid">
+            <div v-for="n in 6" :key="n" class="wda-card" style="padding: 20px">
+              <q-skeleton type="text" class="text-h6" />
+              <q-skeleton type="text" width="60%" />
+              <q-skeleton type="text" width="40%" />
+            </div>
+          </div>
+
           <div
-            style="
-              display: flex;
-              align-items: center;
-              justify-content: space-between;
-              margin-bottom: 16px;
-            "
+            v-else-if="charactersStore.error && charactersStore.characters.length === 0"
+            class="empty-state"
           >
+            <q-icon name="error_outline" size="3rem" style="color: var(--wda-text-muted)" />
+            <p class="empty-state-title">Could not load characters</p>
+            <p class="empty-state-desc">{{ charactersStore.error }}</p>
             <q-btn
-              flat
-              icon="arrow_back"
-              label="Back to Project"
-              :to="`/projects/${projectId}`"
+              unelevated
+              color="primary"
+              label="Retry"
+              @click="charactersStore.fetchCharacters(projectId)"
               no-caps
-              style="
-                font-family: var(--wda-font-ui);
-                font-size: 0.85rem;
-                color: var(--wda-text-muted);
-              "
-            />
-            <q-btn
-              flat
-              round
-              :icon="$q.dark.isActive ? 'light_mode' : 'dark_mode'"
-              @click="$q.dark.toggle()"
-              size="sm"
             />
           </div>
 
-          <q-tabs v-model="tab" @update:model-value="onTabChange">
-            <q-tab name="characters" label="Characters" icon="people" />
-            <q-tab name="places" label="Places" icon="place" />
-            <q-tab name="timeline" label="Timeline" icon="timeline" />
-          </q-tabs>
+          <div v-else-if="charactersStore.characters.length === 0" class="empty-state">
+            <q-icon name="people" size="3rem" style="color: var(--wda-text-muted)" />
+            <p class="empty-state-title">No characters yet</p>
+            <p class="empty-state-desc">Every great story has characters worth remembering.</p>
+            <q-btn
+              unelevated
+              color="primary"
+              label="Add your first character"
+              icon="add"
+              @click="openCreateEntity('characters')"
+              no-caps
+            />
+          </div>
 
-          <q-tab-panels v-model="tab" animated>
-            <!-- Characters -->
-            <q-tab-panel name="characters">
-              <div class="tab-header">
-                <div class="tab-title">Characters</div>
-                <div class="tab-actions">
-                  <q-btn-toggle
-                    v-model="viewModeChar"
-                    flat
-                    dense
-                    :options="[
-                      { value: 'grid', icon: 'grid_view' },
-                      { value: 'list', icon: 'list' },
-                    ]"
-                    @update:model-value="persistViewMode('characters', $event)"
-                  />
-                  <q-btn
-                    unelevated
-                    dense
-                    icon="add"
-                    label="Add Character"
-                    color="primary"
-                    no-caps
-                    @click="openCreateEntity('characters')"
-                    style="font-family: var(--wda-font-ui); font-size: 0.85rem"
-                  />
+          <div v-else-if="viewModeChar === 'list'" class="entity-list-view">
+            <div
+              v-for="char in charactersStore.characters"
+              :key="char.id"
+              class="entity-list-item"
+            >
+              <div class="entity-list-name">{{ char.name }}</div>
+              <div class="entity-list-desc">{{ char.description || 'No description' }}</div>
+              <q-btn
+                flat
+                dense
+                round
+                icon="edit"
+                size="sm"
+                @click="openEditEntity('characters', char)"
+              />
+              <q-btn
+                flat
+                dense
+                round
+                icon="delete"
+                size="sm"
+                color="negative"
+                @click="openDelete('characters', char)"
+              />
+            </div>
+          </div>
+
+          <div v-else class="entity-grid">
+            <div v-for="char in charactersStore.characters" :key="char.id">
+              <EntityCard
+                :entity="char"
+                @edit="openEditEntity('characters', char)"
+                @delete="openDelete('characters', char)"
+              />
+            </div>
+          </div>
+        </q-tab-panel>
+
+        <!-- Places -->
+        <q-tab-panel name="places">
+          <div class="tab-header">
+            <div class="tab-title">Places</div>
+            <div class="tab-actions">
+              <q-btn-toggle
+                v-model="viewModePlace"
+                flat
+                dense
+                :options="[
+                  { value: 'grid', icon: 'grid_view' },
+                  { value: 'list', icon: 'list' },
+                ]"
+                @update:model-value="persistViewMode('places', $event)"
+              />
+              <q-btn
+                unelevated
+                dense
+                icon="add"
+                label="Add Place"
+                color="primary"
+                no-caps
+                @click="openCreateEntity('places')"
+                style="font-family: var(--wda-font-ui); font-size: 0.85rem"
+              />
+            </div>
+          </div>
+
+          <div v-if="placesStore.loading" class="entity-grid">
+            <div v-for="n in 6" :key="n" class="wda-card" style="padding: 20px">
+              <q-skeleton type="text" class="text-h6" />
+              <q-skeleton type="text" width="60%" />
+              <q-skeleton type="text" width="40%" />
+            </div>
+          </div>
+
+          <div
+            v-else-if="placesStore.error && placesStore.places.length === 0"
+            class="empty-state"
+          >
+            <q-icon name="error_outline" size="3rem" style="color: var(--wda-text-muted)" />
+            <p class="empty-state-title">Could not load places</p>
+            <p class="empty-state-desc">{{ placesStore.error }}</p>
+            <q-btn
+              unelevated
+              color="primary"
+              label="Retry"
+              @click="placesStore.fetchPlaces(projectId)"
+              no-caps
+            />
+          </div>
+
+          <div v-else-if="placesStore.places.length === 0" class="empty-state">
+            <q-icon name="place" size="3rem" style="color: var(--wda-text-muted)" />
+            <p class="empty-state-title">No places yet</p>
+            <p class="empty-state-desc">Every world needs somewhere to call home.</p>
+            <q-btn
+              unelevated
+              color="primary"
+              label="Add your first place"
+              icon="add"
+              @click="openCreateEntity('places')"
+              no-caps
+            />
+          </div>
+
+          <div v-else-if="viewModePlace === 'list'" class="entity-list-view">
+            <div v-for="place in placesStore.places" :key="place.id" class="entity-list-item">
+              <div class="entity-list-name">{{ place.name }}</div>
+              <div class="entity-list-desc">{{ place.description || 'No description' }}</div>
+              <q-btn
+                flat
+                dense
+                round
+                icon="edit"
+                size="sm"
+                @click="openEditEntity('places', place)"
+              />
+              <q-btn
+                flat
+                dense
+                round
+                icon="delete"
+                size="sm"
+                color="negative"
+                @click="openDelete('places', place)"
+              />
+            </div>
+          </div>
+
+          <div v-else class="entity-grid">
+            <div v-for="place in placesStore.places" :key="place.id">
+              <EntityCard
+                :entity="place"
+                @edit="openEditEntity('places', place)"
+                @delete="openDelete('places', place)"
+              />
+            </div>
+          </div>
+        </q-tab-panel>
+
+        <!-- Timeline -->
+        <q-tab-panel name="timeline">
+          <div class="tab-header">
+            <div class="tab-title">Timeline Events</div>
+            <div class="tab-actions">
+              <q-btn
+                unelevated
+                dense
+                icon="add"
+                label="Add Event"
+                color="primary"
+                no-caps
+                @click="openCreateTimelineEvent"
+                style="font-family: var(--wda-font-ui); font-size: 0.85rem"
+              />
+            </div>
+          </div>
+
+          <div v-if="timelineEventsStore.loading" class="text-center q-mt-xl">
+            <q-spinner size="lg" color="primary" />
+          </div>
+
+          <div
+            v-else-if="
+              timelineEventsStore.error && timelineEventsStore.timelineEvents.length === 0
+            "
+            class="empty-state"
+          >
+            <q-icon name="error_outline" size="3rem" style="color: var(--wda-text-muted)" />
+            <p class="empty-state-title">Could not load timeline</p>
+            <p class="empty-state-desc">{{ timelineEventsStore.error }}</p>
+            <q-btn
+              unelevated
+              color="primary"
+              label="Retry"
+              @click="timelineEventsStore.fetchTimelineEvents(projectId)"
+              no-caps
+            />
+          </div>
+
+          <div v-else-if="timelineEventsStore.timelineEvents.length === 0" class="empty-state">
+            <q-icon name="timeline" size="3rem" style="color: var(--wda-text-muted)" />
+            <p class="empty-state-title">No timeline events yet</p>
+            <p class="empty-state-desc">Chart the course of your story, one event at a time.</p>
+            <q-btn
+              unelevated
+              color="primary"
+              label="Add your first event"
+              icon="add"
+              @click="openCreateTimelineEvent"
+              no-caps
+            />
+          </div>
+
+          <div v-else ref="timelineContainer">
+            <div
+              v-if="reordering"
+              style="
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                color: var(--wda-primary);
+                margin-bottom: 12px;
+                font-size: 0.85rem;
+              "
+            >
+              <q-spinner size="sm" />
+              Saving order...
+            </div>
+            <div
+              v-else-if="timelineEventsStore.error"
+              style="
+                color: var(--wda-negative, #c75d3a);
+                margin-bottom: 12px;
+                font-size: 0.85rem;
+              "
+            >
+              {{ timelineEventsStore.error }}
+            </div>
+
+            <div
+              v-for="event in timelineEventsStore.timelineEvents"
+              :key="event.id"
+              :data-id="event.id"
+              class="timeline-item"
+            >
+              <div class="timeline-order">{{ event.order + 1 }}</div>
+              <div style="flex: 1; min-width: 0">
+                <div style="font-weight: 600; font-family: var(--wda-font-heading)">
+                  {{ event.title }}
                 </div>
-              </div>
-
-              <div v-if="charactersStore.loading" class="entity-grid">
-                <div v-for="n in 6" :key="n" class="wda-card" style="padding: 20px">
-                  <q-skeleton type="text" class="text-h6" />
-                  <q-skeleton type="text" width="60%" />
-                  <q-skeleton type="text" width="40%" />
-                </div>
-              </div>
-
-              <div
-                v-else-if="charactersStore.error && charactersStore.characters.length === 0"
-                class="empty-state"
-              >
-                <q-icon name="error_outline" size="3rem" style="color: var(--wda-text-muted)" />
-                <p class="empty-state-title">Could not load characters</p>
-                <p class="empty-state-desc">{{ charactersStore.error }}</p>
-                <q-btn
-                  unelevated
-                  color="primary"
-                  label="Retry"
-                  @click="charactersStore.fetchCharacters(projectId)"
-                  no-caps
-                />
-              </div>
-
-              <div v-else-if="charactersStore.characters.length === 0" class="empty-state">
-                <q-icon name="people" size="3rem" style="color: var(--wda-text-muted)" />
-                <p class="empty-state-title">No characters yet</p>
-                <p class="empty-state-desc">Every great story has characters worth remembering.</p>
-                <q-btn
-                  unelevated
-                  color="primary"
-                  label="Add your first character"
-                  icon="add"
-                  @click="openCreateEntity('characters')"
-                  no-caps
-                />
-              </div>
-
-              <div v-else-if="viewModeChar === 'list'" class="entity-list-view">
                 <div
-                  v-for="char in charactersStore.characters"
-                  :key="char.id"
-                  class="entity-list-item"
-                >
-                  <div class="entity-list-name">{{ char.name }}</div>
-                  <div class="entity-list-desc">{{ char.description || 'No description' }}</div>
-                  <q-btn
-                    flat
-                    dense
-                    round
-                    icon="edit"
-                    size="sm"
-                    @click="openEditEntity('characters', char)"
-                  />
-                  <q-btn
-                    flat
-                    dense
-                    round
-                    icon="delete"
-                    size="sm"
-                    color="negative"
-                    @click="openDelete('characters', char)"
-                  />
-                </div>
-              </div>
-
-              <div v-else class="entity-grid">
-                <div v-for="char in charactersStore.characters" :key="char.id">
-                  <EntityCard
-                    :entity="char"
-                    @edit="openEditEntity('characters', char)"
-                    @delete="openDelete('characters', char)"
-                  />
-                </div>
-              </div>
-            </q-tab-panel>
-
-            <!-- Places -->
-            <q-tab-panel name="places">
-              <div class="tab-header">
-                <div class="tab-title">Places</div>
-                <div class="tab-actions">
-                  <q-btn-toggle
-                    v-model="viewModePlace"
-                    flat
-                    dense
-                    :options="[
-                      { value: 'grid', icon: 'grid_view' },
-                      { value: 'list', icon: 'list' },
-                    ]"
-                    @update:model-value="persistViewMode('places', $event)"
-                  />
-                  <q-btn
-                    unelevated
-                    dense
-                    icon="add"
-                    label="Add Place"
-                    color="primary"
-                    no-caps
-                    @click="openCreateEntity('places')"
-                    style="font-family: var(--wda-font-ui); font-size: 0.85rem"
-                  />
-                </div>
-              </div>
-
-              <div v-if="placesStore.loading" class="entity-grid">
-                <div v-for="n in 6" :key="n" class="wda-card" style="padding: 20px">
-                  <q-skeleton type="text" class="text-h6" />
-                  <q-skeleton type="text" width="60%" />
-                  <q-skeleton type="text" width="40%" />
-                </div>
-              </div>
-
-              <div
-                v-else-if="placesStore.error && placesStore.places.length === 0"
-                class="empty-state"
-              >
-                <q-icon name="error_outline" size="3rem" style="color: var(--wda-text-muted)" />
-                <p class="empty-state-title">Could not load places</p>
-                <p class="empty-state-desc">{{ placesStore.error }}</p>
-                <q-btn
-                  unelevated
-                  color="primary"
-                  label="Retry"
-                  @click="placesStore.fetchPlaces(projectId)"
-                  no-caps
-                />
-              </div>
-
-              <div v-else-if="placesStore.places.length === 0" class="empty-state">
-                <q-icon name="place" size="3rem" style="color: var(--wda-text-muted)" />
-                <p class="empty-state-title">No places yet</p>
-                <p class="empty-state-desc">Every world needs somewhere to call home.</p>
-                <q-btn
-                  unelevated
-                  color="primary"
-                  label="Add your first place"
-                  icon="add"
-                  @click="openCreateEntity('places')"
-                  no-caps
-                />
-              </div>
-
-              <div v-else-if="viewModePlace === 'list'" class="entity-list-view">
-                <div v-for="place in placesStore.places" :key="place.id" class="entity-list-item">
-                  <div class="entity-list-name">{{ place.name }}</div>
-                  <div class="entity-list-desc">{{ place.description || 'No description' }}</div>
-                  <q-btn
-                    flat
-                    dense
-                    round
-                    icon="edit"
-                    size="sm"
-                    @click="openEditEntity('places', place)"
-                  />
-                  <q-btn
-                    flat
-                    dense
-                    round
-                    icon="delete"
-                    size="sm"
-                    color="negative"
-                    @click="openDelete('places', place)"
-                  />
-                </div>
-              </div>
-
-              <div v-else class="entity-grid">
-                <div v-for="place in placesStore.places" :key="place.id">
-                  <EntityCard
-                    :entity="place"
-                    @edit="openEditEntity('places', place)"
-                    @delete="openDelete('places', place)"
-                  />
-                </div>
-              </div>
-            </q-tab-panel>
-
-            <!-- Timeline -->
-            <q-tab-panel name="timeline">
-              <div class="tab-header">
-                <div class="tab-title">Timeline Events</div>
-                <div class="tab-actions">
-                  <q-btn
-                    unelevated
-                    dense
-                    icon="add"
-                    label="Add Event"
-                    color="primary"
-                    no-caps
-                    @click="openCreateTimelineEvent"
-                    style="font-family: var(--wda-font-ui); font-size: 0.85rem"
-                  />
-                </div>
-              </div>
-
-              <div v-if="timelineEventsStore.loading" class="text-center q-mt-xl">
-                <q-spinner size="lg" color="primary" />
-              </div>
-
-              <div
-                v-else-if="
-                  timelineEventsStore.error && timelineEventsStore.timelineEvents.length === 0
-                "
-                class="empty-state"
-              >
-                <q-icon name="error_outline" size="3rem" style="color: var(--wda-text-muted)" />
-                <p class="empty-state-title">Could not load timeline</p>
-                <p class="empty-state-desc">{{ timelineEventsStore.error }}</p>
-                <q-btn
-                  unelevated
-                  color="primary"
-                  label="Retry"
-                  @click="timelineEventsStore.fetchTimelineEvents(projectId)"
-                  no-caps
-                />
-              </div>
-
-              <div v-else-if="timelineEventsStore.timelineEvents.length === 0" class="empty-state">
-                <q-icon name="timeline" size="3rem" style="color: var(--wda-text-muted)" />
-                <p class="empty-state-title">No timeline events yet</p>
-                <p class="empty-state-desc">Chart the course of your story, one event at a time.</p>
-                <q-btn
-                  unelevated
-                  color="primary"
-                  label="Add your first event"
-                  icon="add"
-                  @click="openCreateTimelineEvent"
-                  no-caps
-                />
-              </div>
-
-              <div v-else ref="timelineContainer">
-                <div
-                  v-if="reordering"
+                  v-if="event.description"
                   style="
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    color: var(--wda-primary);
-                    margin-bottom: 12px;
                     font-size: 0.85rem;
+                    color: var(--wda-text-muted);
+                    margin-top: 4px;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    display: -webkit-box;
+                    -webkit-line-clamp: 2;
+                    -webkit-box-orient: vertical;
                   "
                 >
-                  <q-spinner size="sm" />
-                  Saving order...
-                </div>
-                <div
-                  v-else-if="timelineEventsStore.error"
-                  style="
-                    color: var(--wda-negative, #c75d3a);
-                    margin-bottom: 12px;
-                    font-size: 0.85rem;
-                  "
-                >
-                  {{ timelineEventsStore.error }}
-                </div>
-
-                <div
-                  v-for="event in timelineEventsStore.timelineEvents"
-                  :key="event.id"
-                  :data-id="event.id"
-                  class="timeline-item"
-                >
-                  <div class="timeline-order">{{ event.order + 1 }}</div>
-                  <div style="flex: 1; min-width: 0">
-                    <div style="font-weight: 600; font-family: var(--wda-font-heading)">
-                      {{ event.title }}
-                    </div>
-                    <div
-                      v-if="event.description"
-                      style="
-                        font-size: 0.85rem;
-                        color: var(--wda-text-muted);
-                        margin-top: 4px;
-                        overflow: hidden;
-                        text-overflow: ellipsis;
-                        display: -webkit-box;
-                        -webkit-line-clamp: 2;
-                        -webkit-box-orient: vertical;
-                      "
-                    >
-                      {{ event.description }}
-                    </div>
-                  </div>
-                  <q-icon
-                    name="drag_indicator"
-                    class="drag-handle cursor-grab"
-                    size="sm"
-                    style="color: var(--wda-text-muted); flex-shrink: 0"
-                  />
-                  <q-btn flat dense round icon="more_vert" size="sm" @click.stop>
-                    <q-menu anchor="bottom end" self="top end">
-                      <q-list dense style="min-width: 120px">
-                        <q-item clickable v-close-popup @click.stop="openEditTimelineEvent(event)">
-                          <q-item-section>Edit</q-item-section>
-                        </q-item>
-                        <q-item clickable v-close-popup @click.stop="openDelete('timeline', event)">
-                          <q-item-section class="text-negative">Delete</q-item-section>
-                        </q-item>
-                      </q-list>
-                    </q-menu>
-                  </q-btn>
+                  {{ event.description }}
                 </div>
               </div>
-            </q-tab-panel>
-          </q-tab-panels>
+              <q-icon
+                name="drag_indicator"
+                class="drag-handle cursor-grab"
+                size="sm"
+                style="color: var(--wda-text-muted); flex-shrink: 0"
+              />
+              <q-btn flat dense round icon="more_vert" size="sm" @click.stop>
+                <q-menu anchor="bottom end" self="top end">
+                  <q-list dense style="min-width: 120px">
+                    <q-item clickable v-close-popup @click.stop="openEditTimelineEvent(event)">
+                      <q-item-section>Edit</q-item-section>
+                    </q-item>
+                    <q-item clickable v-close-popup @click.stop="openDelete('timeline', event)">
+                      <q-item-section class="text-negative">Delete</q-item-section>
+                    </q-item>
+                  </q-list>
+                </q-menu>
+              </q-btn>
+            </div>
+          </div>
+        </q-tab-panel>
+      </q-tab-panels>
 
-          <!-- Entity Form Dialog -->
-          <EntityFormDialog
-            v-model="showEntityDialog"
-            :entity="editingEntity"
-            :entity-label="activeEntityLabel"
-            name-label="Name"
-            :saving="entitySaving"
-            :error-text="entityError"
-            @save="onEntitySave"
-          />
+      <!-- Entity Form Dialog -->
+      <EntityFormDialog
+        v-model="showEntityDialog"
+        :entity="editingEntity"
+        :entity-label="activeEntityLabel"
+        name-label="Name"
+        :saving="entitySaving"
+        :error-text="entityError"
+        @save="onEntitySave"
+      />
 
-          <!-- Timeline Event Dialog -->
-          <q-dialog v-model="showTimelineDialog" @before-hide="resetTimelineForm">
-            <q-card class="wda-card" style="min-width: 400px">
-              <q-card-section>
-                <div class="text-h6" style="font-family: var(--wda-font-heading)">
-                  {{ editingTimelineEvent ? 'Edit' : 'Add' }} Timeline Event
-                </div>
-              </q-card-section>
-              <q-card-section>
-                <q-input
-                  v-model="timelineForm.title"
-                  label="Title"
-                  autofocus
-                  outlined
-                  color="primary"
-                  :error="!!timelineTitleError"
-                  :error-message="timelineTitleError"
-                  @keyup.enter="submitTimelineEvent"
-                />
-                <q-input
-                  v-model="timelineForm.description"
-                  label="Description (optional)"
-                  type="textarea"
-                  :rows="4"
-                  outlined
-                  color="primary"
-                  class="q-mt-md"
-                />
-                <div v-if="timelineError" class="text-negative q-mt-sm">{{ timelineError }}</div>
-              </q-card-section>
-              <q-card-actions align="right">
-                <q-btn flat label="Cancel" v-close-popup no-caps />
-                <q-btn
-                  unelevated
-                  color="primary"
-                  label="Save"
-                  :loading="timelineSaving"
-                  no-caps
-                  @click="submitTimelineEvent"
-                />
-              </q-card-actions>
-            </q-card>
-          </q-dialog>
+      <!-- Timeline Event Dialog -->
+      <q-dialog v-model="showTimelineDialog" @before-hide="resetTimelineForm">
+        <q-card class="wda-card" style="min-width: 400px">
+          <q-card-section>
+            <div class="text-h6" style="font-family: var(--wda-font-heading)">
+              {{ editingTimelineEvent ? 'Edit' : 'Add' }} Timeline Event
+            </div>
+          </q-card-section>
+          <q-card-section>
+            <q-input
+              v-model="timelineForm.title"
+              label="Title"
+              autofocus
+              outlined
+              color="primary"
+              :error="!!timelineTitleError"
+              :error-message="timelineTitleError"
+              @keyup.enter="submitTimelineEvent"
+            />
+            <q-input
+              v-model="timelineForm.description"
+              label="Description (optional)"
+              type="textarea"
+              :rows="4"
+              outlined
+              color="primary"
+              class="q-mt-md"
+            />
+            <div v-if="timelineError" class="text-negative q-mt-sm">{{ timelineError }}</div>
+          </q-card-section>
+          <q-card-actions align="right">
+            <q-btn flat label="Cancel" v-close-popup no-caps />
+            <q-btn
+              unelevated
+              color="primary"
+              label="Save"
+              :loading="timelineSaving"
+              no-caps
+              @click="submitTimelineEvent"
+            />
+          </q-card-actions>
+        </q-card>
+      </q-dialog>
 
-          <!-- Delete Confirmation Dialog -->
-          <q-dialog v-model="showDeleteDialog">
-            <q-card class="wda-card" style="min-width: 350px">
-              <q-card-section>
-                <div class="text-h6" style="font-family: var(--wda-font-heading)">
-                  Delete {{ deleteTargetLabel }}
-                </div>
-              </q-card-section>
-              <q-card-section>
-                <p>
-                  Are you sure you want to delete '<strong>{{ deleteTargetName }}</strong
-                  >'? This cannot be undone.
-                </p>
-                <div v-if="deleteError" class="text-negative">{{ deleteError }}</div>
-              </q-card-section>
-              <q-card-actions align="right">
-                <q-btn flat label="Cancel" v-close-popup no-caps />
-                <q-btn
-                  unelevated
-                  color="negative"
-                  label="Delete"
-                  :loading="deleting"
-                  no-caps
-                  @click="submitDelete"
-                />
-              </q-card-actions>
-            </q-card>
-          </q-dialog>
-        </div>
-      </q-page>
-    </q-page-container>
-  </q-layout>
+      <!-- Delete Confirmation Dialog -->
+      <q-dialog v-model="showDeleteDialog">
+        <q-card class="wda-card" style="min-width: 350px">
+          <q-card-section>
+            <div class="text-h6" style="font-family: var(--wda-font-heading)">
+              Delete {{ deleteTargetLabel }}
+            </div>
+          </q-card-section>
+          <q-card-section>
+            <p>
+              Are you sure you want to delete '<strong>{{ deleteTargetName }}</strong
+              >'? This cannot be undone.
+            </p>
+            <div v-if="deleteError" class="text-negative">{{ deleteError }}</div>
+          </q-card-section>
+          <q-card-actions align="right">
+            <q-btn flat label="Cancel" v-close-popup no-caps />
+            <q-btn
+              unelevated
+              color="negative"
+              label="Delete"
+              :loading="deleting"
+              no-caps
+              @click="submitDelete"
+            />
+          </q-card-actions>
+        </q-card>
+      </q-dialog>
+    </div>
+  </q-page>
 </template>
 
 <script setup>

@@ -7,6 +7,9 @@ from django.dispatch import receiver
 class Project(models.Model):
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     title = models.CharField(max_length=255)
+    genre = models.CharField(max_length=100, blank=True, default='')
+    synopsis = models.TextField(blank=True, default='')
+    cover_image = models.ImageField(upload_to='covers/', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

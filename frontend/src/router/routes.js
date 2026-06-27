@@ -17,39 +17,56 @@ const routes = [
   },
 
   {
-    path: '/dashboard',
-    component: () => import('@/pages/DashboardPage.vue'),
-    meta: { requiresAuth: true },
-  },
+    path: '/',
+    component: () => import('@/layouts/MainAppLayout.vue'),
+    children: [
+      {
+        path: '/dashboard',
+        component: () => import('@/pages/DashboardPage.vue'),
+        meta: { requiresAuth: true },
+      },
 
-  {
-    path: '/settings',
-    component: () => import('@/pages/SettingsPage.vue'),
-    meta: { requiresAuth: true },
-  },
+      {
+        path: '/settings',
+        component: () => import('@/pages/SettingsPage.vue'),
+        meta: { requiresAuth: true },
+      },
 
-  {
-    path: '/projects/:id',
-    component: () => import('@/pages/ProjectDetailPage.vue'),
-    meta: { requiresAuth: true },
-  },
+      {
+        path: '/projects/new',
+        component: () => import('@/pages/CreateProjectPage.vue'),
+        meta: { requiresAuth: true },
+      },
 
-  {
-    path: '/projects/:id/story-bible',
-    component: () => import('@/pages/StoryBiblePage.vue'),
-    meta: { requiresAuth: true },
-  },
+      {
+        path: '/projects/:id/edit',
+        component: () => import('@/pages/CreateProjectPage.vue'),
+        meta: { requiresAuth: true },
+      },
 
-  {
-    path: '/projects/:id/write',
-    component: () => import('@/pages/WritePage.vue'),
-    meta: { requiresAuth: true },
-  },
+      {
+        path: '/projects/:id',
+        redirect: (to) => ({ path: `/projects/${to.params.id}/write` }),
+      },
 
-  {
-    path: '/projects/:id/statistics',
-    component: () => import('@/pages/StatisticsPage.vue'),
-    meta: { requiresAuth: true },
+      {
+        path: '/projects/:id/story-bible',
+        component: () => import('@/pages/StoryBiblePage.vue'),
+        meta: { requiresAuth: true },
+      },
+
+      {
+        path: '/projects/:id/write',
+        component: () => import('@/pages/WritePage.vue'),
+        meta: { requiresAuth: true },
+      },
+
+      {
+        path: '/projects/:id/statistics',
+        component: () => import('@/pages/StatisticsPage.vue'),
+        meta: { requiresAuth: true },
+      },
+    ],
   },
 
   {
