@@ -63,6 +63,54 @@ class TimelineEvent(models.Model):
         ordering = ['order']
 
 
+class Group(models.Model):
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='groups')
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    group_type = models.CharField(max_length=100, blank=True,
+        help_text="e.g. Faction, Organization, Guild, Family, Religion")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        ordering = ['name']
+
+
+class Item(models.Model):
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='items')
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    item_type = models.CharField(max_length=100, blank=True,
+        help_text="e.g. Weapon, Artifact, Relic, Tool, MacGuffin")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        ordering = ['name']
+
+
+class Lore(models.Model):
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='lore')
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    lore_type = models.CharField(max_length=100, blank=True,
+        help_text="e.g. Magic System, Religion, Language, History, Law, Geography")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.title
+
+    class Meta:
+        ordering = ['title']
+
+
 class Scene(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='scenes')
     title = models.CharField(max_length=255, blank=True)
@@ -71,6 +119,9 @@ class Scene(models.Model):
     characters = models.ManyToManyField(Character, blank=True)
     places = models.ManyToManyField(Place, blank=True)
     timeline_events = models.ManyToManyField(TimelineEvent, blank=True, related_name='scenes')
+    groups = models.ManyToManyField(Group, blank=True, related_name='scenes')
+    items = models.ManyToManyField(Item, blank=True, related_name='scenes')
+    lore = models.ManyToManyField(Lore, blank=True, related_name='scenes')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

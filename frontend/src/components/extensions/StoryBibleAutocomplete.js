@@ -8,7 +8,7 @@ const StoryBibleAutocomplete = Extension.create({
   addOptions() {
     return {
       getSuggestions: () => [],
-      minChars: 4,
+      minChars: 2,
     }
   },
 
@@ -34,7 +34,10 @@ const StoryBibleAutocomplete = Extension.create({
               return { decorations: DecorationSet.empty, suggestion: null }
             }
 
-            const textBefore = newState.doc.textBetween(0, $head.pos)
+            const textBefore = newState.doc.textBetween(
+              $head.start(Math.max(1, $head.depth - 1)),
+              $head.pos,
+            )
             const lastWordMatch = textBefore.match(/(\S+)$/)
             const currentWord = lastWordMatch ? lastWordMatch[1] : ''
 
@@ -69,8 +72,6 @@ const StoryBibleAutocomplete = Extension.create({
             const ghostEl = document.createElement('span')
             ghostEl.className = 'autocomplete-ghost'
             ghostEl.textContent = completion
-            ghostEl.style.cssText =
-              'color: rgba(0,0,0,0.3); pointer-events: none; user-select: none; font-style: italic; white-space: pre;'
 
             const deco = Decoration.widget($head.pos, ghostEl, { side: 1 })
             const decorations = DecorationSet.create(newState.doc, [deco])
@@ -89,9 +90,9 @@ const StoryBibleAutocomplete = Extension.create({
 
             if (event.key === 'Tab' || event.key === 'ArrowRight') {
               event.preventDefault()
-              const { from, completion } = pluginState.suggestion
+              const { from, text, fullMatch } = pluginState.suggestion
               const { tr } = view.state
-              tr.insertText(completion, from)
+              tr.insertText(fullMatch, from - text.length, from)
               view.dispatch(tr)
               return true
             }

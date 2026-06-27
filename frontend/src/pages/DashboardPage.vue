@@ -97,12 +97,12 @@
             <div
               class="wda-right-tab-panel__tab"
               :class="{ 'wda-right-tab-panel__tab--active': rightTab === 'ai' }"
-              @click="rightTab = 'ai'"
+              @click="onTabChange('ai')"
             >AI Assistant</div>
             <div
               class="wda-right-tab-panel__tab"
               :class="{ 'wda-right-tab-panel__tab--active': rightTab === 'history' }"
-              @click="rightTab = 'history'"
+              @click="onTabChange('history')"
             >Version History</div>
           </div>
 
@@ -190,7 +190,7 @@
       <div class="wda-workspace-row">
         <!-- Scenes Panel -->
         <div class="wda-scenes-panel">
-          <div class="wda-scenes-panel__header">Scenes</div>
+          <div class="wda-scenes-panel__header workspace-section-header">Scenes</div>
 
           <div class="wda-scenes-panel__list">
             <template v-if="scenesStore.loading">
@@ -261,7 +261,7 @@
         <div class="wda-right-column">
           <!-- Panel A: Story Bible Tags -->
           <div class="wda-tags-panel">
-            <div class="wda-tags-panel__title">Story Bible Tags</div>
+            <div class="wda-tags-panel__title workspace-section-header">Story Bible Tags</div>
             <template v-if="!selectedSceneId">
               <div class="wda-tags-panel__empty">Select a scene to see tags</div>
             </template>
@@ -279,7 +279,7 @@
 
           <!-- Panel B: Statistics -->
           <div class="wda-stats-panel">
-            <div class="wda-stats-panel__title">Statistics</div>
+            <div class="wda-stats-panel__title workspace-section-header">Statistics</div>
             <template v-if="!projectsStore.selectedProjectId">
               <div class="wda-stats-panel__empty">Select a project to view stats</div>
             </template>
@@ -352,6 +352,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import { debounce } from 'quasar'
 import { useRouter } from 'vue-router'
 import { useProjectsStore } from '@/stores/projects'
 import { useScenesStore } from '@/stores/scenes'
@@ -381,6 +382,8 @@ const stripRef = ref(null)
 const chartCanvas = ref(null)
 let chartInstance = null
 
+const tabsFetched = ref({ ai: false, history: false })
+
 const isDragging = ref(false)
 const dragStartX = ref(0)
 const dragScrollLeft = ref(0)
@@ -406,6 +409,36 @@ function onStripMouseUp() {
   isDragging.value = false
   stripRef.value?.classList.remove('wda-projects-strip--dragging')
 }
+
+// ---- Lazy tab data loading ----
+async function loadTabData(tab) {
+  if (!selectedSceneId.value || !projectsStore.selectedProjectId) return
+  if (tab === 'ai' && !tabsFetched.value.ai) {
+    await conversationsStore.fetchOrCreateConversation(projectsStore.selectedProjectId, selectedSceneId.value)
+    await conversationsStore.fetchMessages(projectsStore.selectedProjectId)
+    tabsFetched.value.ai = true
+  }
+  if (tab === 'history' && !tabsFetched.value.history) {
+    await sceneVersionsStore.fetchVersions(projectsStore.selectedProjectId, selectedSceneId.value)
+    tabsFetched.value.history = true
+  }
+}
+
+function onTabChange(tab) {
+  rightTab.value = tab
+  loadTabData(tab)
+}
+
+const debouncedLoadProjectData = debounce(async (projectId) => {
+  await scenesStore.fetchScenes(projectId)
+  await statisticsStore.fetchStatistics(projectId)
+  await charactersStore.fetchCharacters(projectId)
+  await placesStore.fetchPlaces(projectId)
+  await timelineEventsStore.fetchTimelineEvents(projectId)
+  if (scenesStore.scenes.length > 0) {
+    selectScene(scenesStore.scenes[0].id)
+  }
+}, 200)
 
 const selectedSceneId = ref(null)
 const rightTab = ref('ai')
@@ -478,28 +511,17 @@ async function selectProject(projectId) {
   projectsStore.selectedProjectId = projectId
   selectedSceneId.value = null
   rightTab.value = 'ai'
+  tabsFetched.value = { ai: false, history: false }
   conversationsStore.reset()
   sceneVersionsStore.versions = []
-  await Promise.all([
-    scenesStore.fetchScenes(projectId),
-    statisticsStore.fetchStatistics(projectId),
-    charactersStore.fetchCharacters(projectId),
-    placesStore.fetchPlaces(projectId),
-    timelineEventsStore.fetchTimelineEvents(projectId),
-  ])
-  if (scenesStore.scenes.length > 0) {
-    selectScene(scenesStore.scenes[0].id)
-  }
+  debouncedLoadProjectData(projectId)
 }
 
 async function selectScene(sceneId) {
   if (selectedSceneId.value === sceneId) return
   selectedSceneId.value = sceneId
-  await Promise.all([
-    conversationsStore.fetchOrCreateConversation(projectsStore.selectedProjectId, sceneId),
-    sceneVersionsStore.fetchVersions(projectsStore.selectedProjectId, sceneId),
-  ])
-  await conversationsStore.fetchMessages(projectsStore.selectedProjectId)
+  tabsFetched.value = { ai: false, history: false }
+  loadTabData(rightTab.value)
 }
 
 function loadMoreVersions() {

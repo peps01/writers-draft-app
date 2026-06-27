@@ -142,7 +142,7 @@ Do not suggest improvements. Only flag contradictions.
 
 For each contradiction found, output it in this exact format:
 SEVERITY: [HIGH / MEDIUM / LOW]
-CATEGORY: [Character / Place / Timeline]
+CATEGORY: [Character / Place / Timeline / Group / Item / Lore]
 ISSUE: One sentence describing the contradiction precisely.
 STORY BIBLE SAYS: Quote the relevant part of the Story Bible entry.
 SCENE SAYS: Quote the relevant part of the scene that conflicts.
@@ -219,6 +219,9 @@ def check_contradictions(user, scene):
     characters = project.characters.all()
     places = project.places.all()
     timeline_events = project.timeline_events.all()
+    groups = project.groups.all()
+    items = project.items.all()
+    lore = project.lore.all()
 
     parts = [CONTRADICTION_SYSTEM_PROMPT]
     parts.append("\n\n--- FULL STORY BIBLE ---")
@@ -234,6 +237,18 @@ def check_contradictions(user, scene):
     parts.append("\n\nTIMELINE EVENTS:")
     for i, e in enumerate(timeline_events, 1):
         parts.append(f"\n{i}. {e.title}: {e.description}")
+
+    parts.append("\n\nGROUPS/FACTIONS:")
+    for g in groups:
+        parts.append(f"\n- {g.name} ({g.group_type}): {g.description}")
+
+    parts.append("\n\nITEMS/ARTIFACTS:")
+    for i in items:
+        parts.append(f"\n- {i.name} ({i.item_type}): {i.description}")
+
+    parts.append("\n\nLORE/WORLD-BUILDING:")
+    for l in lore:
+        parts.append(f"\n- {l.title} ({l.lore_type}): {l.description}")
 
     if scene.content:
         plain = re.sub(r'<[^>]+>', '', scene.content)

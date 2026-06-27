@@ -1,11 +1,14 @@
 from django.contrib import admin
 
-from .models import Project, Character, Place, TimelineEvent, Scene, SceneVersion, Conversation, Message, UserProfile
+from .models import Project, Character, Place, TimelineEvent, Group, Item, Lore, Scene, SceneVersion, Conversation, Message, UserProfile
 
 admin.site.register(Project)
 admin.site.register(Character)
 admin.site.register(Place)
 admin.site.register(TimelineEvent)
+admin.site.register(Group)
+admin.site.register(Item)
+admin.site.register(Lore)
 admin.site.register(Scene)
 admin.site.register(SceneVersion)
 admin.site.register(Conversation)

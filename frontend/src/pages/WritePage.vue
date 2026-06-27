@@ -111,6 +111,12 @@
           <q-btn flat dense round icon="auto_awesome" size="sm" @click="openAiDrawer">
             <q-tooltip>AI Assistant</q-tooltip>
           </q-btn>
+          <q-btn flat dense round icon="local_offer" size="sm" @click="openTagsDrawer">
+            <q-tooltip>Story Bible Tags</q-tooltip>
+            <q-badge v-if="totalTagCount > 0" floating color="primary" style="font-size: 0.6rem; min-width: 14px; height: 14px; line-height: 14px; padding: 0 4px">
+              {{ totalTagCount }}
+            </q-badge>
+          </q-btn>
 
           <q-btn
             flat
@@ -205,102 +211,31 @@
           @close="showFindReplace = false"
         />
 
-        <RichTextEditor
-          ref="richEditorRef"
-          v-model="sceneContent"
-          :font-size="fontSize"
-          :font-family="fontFamily"
-          placeholder="Begin writing your scene..."
-          @word-count-update="liveWordCount = $event"
-          @ready="editorRef = $event"
-        />
-
-        <div v-if="!fullscreen" style="border-top: 1px solid var(--wda-border)">
+        <div style="position: relative; flex: 1; display: flex; flex-direction: column; min-height: 0">
           <div
-            class="row items-center cursor-pointer q-px-md q-py-sm tags-toggle"
-            style="color: var(--wda-text-muted); user-select: none"
-            @click="showStoryBibleTags = !showStoryBibleTags"
+            class="text-caption"
+            style="position: absolute; top: 6px; right: 14px; color: var(--wda-text-muted); z-index: 1; font-size: 0.7rem"
           >
-            <q-icon :name="showStoryBibleTags ? 'expand_less' : 'expand_more'" size="sm" />
-            <span class="text-caption q-ml-xs">Story Bible — {{ tagsSummary }}</span>
+            {{ liveWordCount }} {{ liveWordCount === 1 ? 'word' : 'words' }}
           </div>
+          <RichTextEditor
+            ref="richEditorRef"
+            v-model="sceneContent"
+            :font-size="fontSize"
+            :font-family="fontFamily"
+            :autocomplete-suggestions="getSuggestions"
+            placeholder="Begin writing your scene..."
+            @word-count-update="liveWordCount = $event"
+            @ready="editorRef = $event"
+          />
+        </div>
 
-          <template v-if="showStoryBibleTags">
-            <div
-              v-if="
-                characterOptions.length > 0 ||
-                placeOptions.length > 0 ||
-                timelineEventOptions.length > 0
-              "
-              class="row q-gutter-md q-mt-xs items-start q-px-md q-pb-md"
-              style="max-height: 200px; overflow-y: auto; flex-shrink: 0"
-            >
-              <q-select
-                v-model="selectedCharacters"
-                :options="characterOptions"
-                label="Characters"
-                multiple
-                use-chips
-                dense
-                outlined
-                color="primary"
-                clearable
-                class="col"
-                @update:model-value="saveTags"
-              >
-                <template v-if="characterOptions.length === 0" #append>
-                  <q-icon name="info" size="sm" color="grey" />
-                </template>
-              </q-select>
-
-              <q-select
-                v-model="selectedPlaces"
-                :options="placeOptions"
-                label="Places"
-                multiple
-                use-chips
-                dense
-                outlined
-                color="primary"
-                clearable
-                class="col"
-                @update:model-value="saveTags"
-              >
-                <template v-if="placeOptions.length === 0" #append>
-                  <q-icon name="info" size="sm" color="grey" />
-                </template>
-              </q-select>
-
-              <q-select
-                v-model="selectedTimelineEvents"
-                :options="timelineEventOptions"
-                label="Timeline Events"
-                multiple
-                use-chips
-                dense
-                outlined
-                color="primary"
-                clearable
-                class="col"
-                @update:model-value="saveTags"
-              >
-                <template v-if="timelineEventOptions.length === 0" #append>
-                  <q-icon name="info" size="sm" color="grey" />
-                </template>
-              </q-select>
-            </div>
-            <div
-              v-else
-              class="text-caption q-px-md q-pb-md"
-              style="color: var(--wda-text-muted)"
-            >
-              No characters, places, or timeline events yet.
-              <router-link :to="`/projects/${projectId}/story-bible`">
-                Add some to your Story Bible
-              </router-link>
-              to tag them to scenes.
-            </div>
-          </template>
+        <div v-if="!fullscreen" class="tags-bar">
+          <div class="tags-bar-inner cursor-pointer" @click="openTagsDrawer">
+            <q-icon name="local_offer" size="sm" />
+            <span class="text-caption q-ml-xs">Story Bible — {{ tagsSummary }}</span>
+            <q-icon name="chevron_right" size="sm" class="q-ml-xs" />
+          </div>
         </div>
       </template>
     </div>
@@ -403,6 +338,114 @@
             @click="confirmReorder"
           />
         </q-card-actions>
+      </q-card>
+    </q-dialog>
+
+    <!-- Tags Panel -->
+    <q-dialog v-model="tagsDrawerOpen" position="right" maximized>
+      <q-card class="drawer-card" :style="{ width: '380px', maxWidth: '90vw' }" flat>
+        <div class="q-pa-md" style="height: 100%; display: flex; flex-direction: column">
+          <div class="row items-center justify-between q-mb-md">
+            <div class="text-h6 ellipsis" style="font-family: var(--wda-font-heading)">
+              Story Bible Tags
+            </div>
+            <q-btn flat dense round icon="close" size="sm" @click="closeTagsDrawer" />
+          </div>
+
+          <div class="scroll" style="flex: 1; overflow-y: auto">
+            <div v-if="characterOptions.length > 0 || placeOptions.length > 0 || timelineEventOptions.length > 0 || groupOptions.length > 0 || itemOptions.length > 0 || loreOptions.length > 0">
+              <q-select
+                v-model="selectedCharacters"
+                :options="characterOptions"
+                label="Characters"
+                multiple
+                use-chips
+                dense
+                outlined
+                color="primary"
+                clearable
+                class="q-mb-md"
+                @update:model-value="saveTags"
+              />
+
+              <q-select
+                v-model="selectedPlaces"
+                :options="placeOptions"
+                label="Places"
+                multiple
+                use-chips
+                dense
+                outlined
+                color="primary"
+                clearable
+                class="q-mb-md"
+                @update:model-value="saveTags"
+              />
+
+              <q-select
+                v-model="selectedTimelineEvents"
+                :options="timelineEventOptions"
+                label="Timeline Events"
+                multiple
+                use-chips
+                dense
+                outlined
+                color="primary"
+                clearable
+                class="q-mb-md"
+                @update:model-value="saveTags"
+              />
+
+              <q-select
+                v-model="selectedGroups"
+                :options="groupOptions"
+                label="Groups"
+                multiple
+                use-chips
+                dense
+                outlined
+                color="primary"
+                clearable
+                class="q-mb-md"
+                @update:model-value="saveTags"
+              />
+
+              <q-select
+                v-model="selectedItems"
+                :options="itemOptions"
+                label="Items"
+                multiple
+                use-chips
+                dense
+                outlined
+                color="primary"
+                clearable
+                class="q-mb-md"
+                @update:model-value="saveTags"
+              />
+
+              <q-select
+                v-model="selectedLore"
+                :options="loreOptions"
+                label="Lore"
+                multiple
+                use-chips
+                dense
+                outlined
+                color="primary"
+                clearable
+                @update:model-value="saveTags"
+              />
+            </div>
+            <div v-else class="text-center q-mt-xl" style="color: var(--wda-text-muted)">
+              <q-icon name="local_offer" size="48px" class="q-mb-sm" style="opacity: 0.4" />
+              <p>Add entries to your Story Bible to tag them here</p>
+              <router-link :to="`/projects/${projectId}/story-bible`" style="color: var(--wda-primary)">
+                Go to Story Bible
+              </router-link>
+            </div>
+          </div>
+        </div>
       </q-card>
     </q-dialog>
 
@@ -517,7 +560,7 @@
             >
               <div class="row items-center no-wrap">
                 <q-icon name="lightbulb" color="white" size="sm" class="q-mr-sm" />
-                <span>Tag characters, places, and timeline events to this scene for more grounded AI feedback.</span>
+                <span>Tag Story Bible entries to this scene for more grounded AI feedback.</span>
               </div>
               <template #action>
                 <q-btn
@@ -698,6 +741,9 @@ import RichTextEditor from '@/components/RichTextEditor.vue'
 import { useCharactersStore } from '@/stores/characters'
 import { usePlacesStore } from '@/stores/places'
 import { useTimelineEventsStore } from '@/stores/timelineEvents'
+import { useGroupsStore } from '@/stores/groups'
+import { useItemsStore } from '@/stores/items'
+import { useLoreStore } from '@/stores/lore'
 import Sortable from 'sortablejs'
 import { renderMarkdown } from '@/utils/markdown'
 
@@ -710,6 +756,9 @@ const conversationsStore = useConversationsStore()
 const charactersStore = useCharactersStore()
 const placesStore = usePlacesStore()
 const timelineEventsStore = useTimelineEventsStore()
+const groupsStore = useGroupsStore()
+const itemsStore = useItemsStore()
+const loreStore = useLoreStore()
 
 // ---- Editor state ----
 const fullscreen = ref(false)
@@ -771,7 +820,23 @@ const hasStoryBibleTags = computed(() => {
   return (
     (s.characters && s.characters.length > 0) ||
     (s.places && s.places.length > 0) ||
-    (s.timeline_events && s.timeline_events.length > 0)
+    (s.timeline_events && s.timeline_events.length > 0) ||
+    (s.groups && s.groups.length > 0) ||
+    (s.items && s.items.length > 0) ||
+    (s.lore && s.lore.length > 0)
+  )
+})
+
+const totalTagCount = computed(() => {
+  if (!activeScene.value) return 0
+  const s = activeScene.value
+  return (
+    (s.characters || []).length +
+    (s.places || []).length +
+    (s.timeline_events || []).length +
+    (s.groups || []).length +
+    (s.items || []).length +
+    (s.lore || []).length
   )
 })
 
@@ -809,6 +874,9 @@ onMounted(async () => {
     charactersStore.fetchCharacters(projectId),
     placesStore.fetchPlaces(projectId),
     timelineEventsStore.fetchTimelineEvents(projectId),
+    groupsStore.fetchGroups(projectId),
+    itemsStore.fetchItems(projectId),
+    loreStore.fetchLore(projectId),
   ])
   document.addEventListener('keydown', onKeydown)
 })
@@ -1028,15 +1096,50 @@ function autoTagScene(content) {
       changed = true
     }
   }
+  for (const group of groupsStore.groups) {
+    if (group.name.length < 3) continue
+    if (selectedGroups.value.some((s) => s.value === group.id)) continue
+    if (text.includes(group.name.toLowerCase())) {
+      selectedGroups.value.push({ label: group.name, value: group.id })
+      changed = true
+    }
+  }
+  for (const item of itemsStore.items) {
+    if (item.name.length < 3) continue
+    if (selectedItems.value.some((s) => s.value === item.id)) continue
+    if (text.includes(item.name.toLowerCase())) {
+      selectedItems.value.push({ label: item.name, value: item.id })
+      changed = true
+    }
+  }
+  for (const l of loreStore.lore) {
+    if (l.title.length < 3) continue
+    if (selectedLore.value.some((s) => s.value === l.id)) continue
+    if (text.includes(l.title.toLowerCase())) {
+      selectedLore.value.push({ label: l.title, value: l.id })
+      changed = true
+    }
+  }
   if (changed) saveTags()
 }
 
-// ---- Character/Place/TimelineEvent tagging ----
+// ---- Story Bible tagging ----
 const selectedCharacters = ref([])
 const selectedPlaces = ref([])
 const selectedTimelineEvents = ref([])
+const selectedGroups = ref([])
+const selectedItems = ref([])
+const selectedLore = ref([])
 
-const showStoryBibleTags = ref(false)
+const tagsDrawerOpen = ref(false)
+
+function openTagsDrawer() {
+  tagsDrawerOpen.value = true
+}
+
+function closeTagsDrawer() {
+  tagsDrawerOpen.value = false
+}
 
 const tagsSummary = computed(() => {
   const parts = []
@@ -1050,6 +1153,12 @@ const tagsSummary = computed(() => {
     parts.push(
       `${selectedTimelineEvents.value.length} timeline event${selectedTimelineEvents.value.length > 1 ? 's' : ''}`,
     )
+  if (selectedGroups.value.length)
+    parts.push(`${selectedGroups.value.length} group${selectedGroups.value.length > 1 ? 's' : ''}`)
+  if (selectedItems.value.length)
+    parts.push(`${selectedItems.value.length} item${selectedItems.value.length > 1 ? 's' : ''}`)
+  if (selectedLore.value.length)
+    parts.push(`${selectedLore.value.length} lore entry${selectedLore.value.length > 1 ? 's' : ''}`)
   if (!parts.length) return 'No tags'
   return parts.join(', ')
 })
@@ -1075,6 +1184,27 @@ const timelineEventOptions = computed(() => {
   }))
 })
 
+const groupOptions = computed(() => {
+  return groupsStore.groups.map((g) => ({
+    label: g.name,
+    value: g.id,
+  }))
+})
+
+const itemOptions = computed(() => {
+  return itemsStore.items.map((i) => ({
+    label: i.name,
+    value: i.id,
+  }))
+})
+
+const loreOptions = computed(() => {
+  return loreStore.lore.map((l) => ({
+    label: l.title,
+    value: l.id,
+  }))
+})
+
 watch(
   activeScene,
   (scene) => {
@@ -1091,10 +1221,25 @@ watch(
         const e = timelineEventsStore.timelineEvents.find((ev) => ev.id === id)
         return e ? { label: e.title, value: e.id } : { label: `#${id}`, value: id }
       })
+      selectedGroups.value = (scene.groups || []).map((id) => {
+        const g = groupsStore.groups.find((gr) => gr.id === id)
+        return g ? { label: g.name, value: g.id } : { label: `#${id}`, value: id }
+      })
+      selectedItems.value = (scene.items || []).map((id) => {
+        const i = itemsStore.items.find((it) => it.id === id)
+        return i ? { label: i.name, value: i.id } : { label: `#${id}`, value: id }
+      })
+      selectedLore.value = (scene.lore || []).map((id) => {
+        const l = loreStore.lore.find((lo) => lo.id === id)
+        return l ? { label: l.title, value: l.id } : { label: `#${id}`, value: id }
+      })
     } else {
       selectedCharacters.value = []
       selectedPlaces.value = []
       selectedTimelineEvents.value = []
+      selectedGroups.value = []
+      selectedItems.value = []
+      selectedLore.value = []
     }
   },
   { immediate: true },
@@ -1106,6 +1251,9 @@ function saveTags() {
     characters: selectedCharacters.value.map((o) => o.value),
     places: selectedPlaces.value.map((o) => o.value),
     timeline_events: selectedTimelineEvents.value.map((o) => o.value),
+    groups: selectedGroups.value.map((o) => o.value),
+    items: selectedItems.value.map((o) => o.value),
+    lore: selectedLore.value.map((o) => o.value),
   })
 }
 
@@ -1248,6 +1396,15 @@ watch(activeScene, (scene, oldScene) => {
   }
 })
 
+const getSuggestions = () => [
+  ...charactersStore.characters.map(c => c.name),
+  ...placesStore.places.map(p => p.name),
+  ...timelineEventsStore.timelineEvents.map(e => e.title),
+  ...groupsStore.groups.map(g => g.name),
+  ...itemsStore.items.map(i => i.name),
+  ...loreStore.lore.map(l => l.title),
+].filter(Boolean)
+
 function relativeTime(dateStr) {
   if (!dateStr) return ''
   const now = Date.now()
@@ -1268,7 +1425,21 @@ function relativeTime(dateStr) {
   touch-action: none;
 }
 
-.tags-toggle:hover {
+.tags-bar {
+  border-top: 1px solid var(--wda-border);
+}
+
+.tags-bar-inner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  color: var(--wda-text-muted);
+  user-select: none;
+  transition: background 0.15s;
+}
+
+.tags-bar-inner:hover {
   background: var(--wda-surface-2);
 }
 

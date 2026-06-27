@@ -49,6 +49,7 @@ const projectId = computed(() => route.params.id || projectsStore.selectedProjec
 
 const navItems = computed(() => [
   { label: 'Dashboard', icon: 'dashboard', to: '/dashboard', disabled: false, match: (path) => path === '/dashboard' },
+  { label: 'Projects', icon: 'auto_stories', to: '/projects', disabled: false, match: (path) => path === '/projects' },
   {
     label: 'Story Bible',
     icon: 'menu_book',

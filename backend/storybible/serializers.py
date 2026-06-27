@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Project, Character, Place, TimelineEvent, Scene, SceneVersion, Conversation, Message
+from .models import Project, Character, Place, TimelineEvent, Group, Item, Lore, Scene, SceneVersion, Conversation, Message
 
 
 class ProjectSerializer(serializers.ModelSerializer):
@@ -31,6 +31,27 @@ class TimelineEventSerializer(serializers.ModelSerializer):
         read_only_fields = ['project', 'created_at', 'updated_at']
 
 
+class GroupSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Group
+        fields = '__all__'
+        read_only_fields = ['project', 'created_at', 'updated_at']
+
+
+class ItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Item
+        fields = '__all__'
+        read_only_fields = ['project', 'created_at', 'updated_at']
+
+
+class LoreSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Lore
+        fields = '__all__'
+        read_only_fields = ['project', 'created_at', 'updated_at']
+
+
 class SceneSerializer(serializers.ModelSerializer):
     class Meta:
         model = Scene
@@ -46,6 +67,12 @@ class SceneSerializer(serializers.ModelSerializer):
         self.fields['places'].child_relation.queryset = qs
         qs = TimelineEvent.objects.filter(project_id=project_id) if project_id is not None else TimelineEvent.objects.none()
         self.fields['timeline_events'].child_relation.queryset = qs
+        qs = Group.objects.filter(project_id=project_id) if project_id is not None else Group.objects.none()
+        self.fields['groups'].child_relation.queryset = qs
+        qs = Item.objects.filter(project_id=project_id) if project_id is not None else Item.objects.none()
+        self.fields['items'].child_relation.queryset = qs
+        qs = Lore.objects.filter(project_id=project_id) if project_id is not None else Lore.objects.none()
+        self.fields['lore'].child_relation.queryset = qs
 
 
 class SceneVersionSerializer(serializers.ModelSerializer):

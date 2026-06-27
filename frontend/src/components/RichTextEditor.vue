@@ -15,6 +15,7 @@ import FontFamily from '@tiptap/extension-font-family'
 import Highlight from '@tiptap/extension-highlight'
 import { watch, ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { FindReplaceExtension } from '@/components/extensions/findReplacePlugin'
+import StoryBibleAutocomplete from '@/components/extensions/StoryBibleAutocomplete'
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
@@ -22,6 +23,7 @@ const props = defineProps({
   placeholder: { type: String, default: 'Begin writing your scene...' },
   fontSize: { type: String, default: '1.1rem' },
   fontFamily: { type: String, default: 'serif' },
+  autocompleteSuggestions: { type: Function, default: () => [] },
 })
 
 const emit = defineEmits(['update:modelValue', 'wordCountUpdate', 'ready'])
@@ -56,6 +58,9 @@ const editor = useEditor({
     FontFamily,
     Highlight.configure({ multicolor: false }),
     FindReplaceExtension,
+    StoryBibleAutocomplete.configure({
+      getSuggestions: props.autocompleteSuggestions,
+    }),
   ],
   onUpdate: ({ editor }) => {
     const html = editor.getHTML()

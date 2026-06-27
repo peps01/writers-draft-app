@@ -14,12 +14,15 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 
-from .models import Project, Character, Place, TimelineEvent, Scene, SceneVersion, Conversation, Message
+from .models import Project, Character, Place, TimelineEvent, Group, Item, Lore, Scene, SceneVersion, Conversation, Message
 from .serializers import (
     ProjectSerializer,
     CharacterSerializer,
     PlaceSerializer,
     TimelineEventSerializer,
+    GroupSerializer,
+    ItemSerializer,
+    LoreSerializer,
     SceneSerializer,
     SceneVersionSerializer,
     ConversationSerializer,
@@ -183,6 +186,48 @@ class TimelineEventViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return TimelineEvent.objects.filter(
+            project__owner=self.request.user,
+            project_id=self.kwargs['project_pk'],
+        )
+
+    def perform_create(self, serializer):
+        serializer.save(project_id=self.kwargs['project_pk'])
+
+
+class GroupViewSet(viewsets.ModelViewSet):
+    serializer_class = GroupSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Group.objects.filter(
+            project__owner=self.request.user,
+            project_id=self.kwargs['project_pk'],
+        )
+
+    def perform_create(self, serializer):
+        serializer.save(project_id=self.kwargs['project_pk'])
+
+
+class ItemViewSet(viewsets.ModelViewSet):
+    serializer_class = ItemSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Item.objects.filter(
+            project__owner=self.request.user,
+            project_id=self.kwargs['project_pk'],
+        )
+
+    def perform_create(self, serializer):
+        serializer.save(project_id=self.kwargs['project_pk'])
+
+
+class LoreViewSet(viewsets.ModelViewSet):
+    serializer_class = LoreSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Lore.objects.filter(
             project__owner=self.request.user,
             project_id=self.kwargs['project_pk'],
         )

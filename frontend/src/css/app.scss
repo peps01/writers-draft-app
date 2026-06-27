@@ -1787,3 +1787,313 @@ body.body--dark *::-webkit-scrollbar-thumb {
 body.body--dark *::-webkit-scrollbar-thumb:hover {
   background: rgba(255,255,255,.2);
 }
+
+// ── Story Bible Page ──────────────────────────────
+
+.tab-search {
+  max-width: 320px;
+}
+
+.entity-list-item {
+  display: grid;
+  grid-template-columns: 1fr 2fr auto;
+  align-items: center;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--wda-border);
+  gap: 16px;
+  transition: background 0.15s;
+
+  &:hover { background: var(--wda-surface-2); }
+
+  .entity-list-name {
+    font-family: var(--wda-font-heading);
+    font-weight: 600;
+    font-size: 0.95rem;
+    color: var(--wda-text);
+  }
+
+  .entity-list-desc {
+    font-size: 0.83rem;
+    color: var(--wda-text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .entity-list-actions {
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+
+  &:hover .entity-list-actions { opacity: 1; }
+}
+
+.entity-type-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: rgba(245, 166, 35, 0.15);
+  color: var(--wda-primary);
+  margin-left: 8px;
+}
+
+body.body--dark .entity-type-badge {
+  color: #fff;
+  background: rgba(245, 166, 35, 0.25);
+}
+
+.entity-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.entity-grid-card {
+  background: var(--wda-surface);
+  border: 1px solid var(--wda-border);
+  border-radius: var(--wda-radius);
+  padding: 0;
+  overflow: hidden;
+  transition: box-shadow 0.2s, transform 0.15s;
+  display: flex;
+  flex-direction: column;
+
+  &:hover {
+    box-shadow: var(--wda-shadow-md);
+    transform: translateY(-2px);
+  }
+
+  .card-stripe {
+    height: 4px;
+    background: var(--entity-color, var(--wda-primary));
+  }
+
+  .card-body {
+    padding: 16px;
+    flex: 1;
+  }
+
+  .card-name {
+    font-family: var(--wda-font-heading);
+    font-weight: 600;
+    font-size: 1rem;
+    margin-bottom: 4px;
+    color: var(--wda-text);
+  }
+
+  .card-type-badge {
+    margin-bottom: 8px;
+    display: inline-block;
+  }
+
+  .card-desc {
+    font-size: 0.82rem;
+    color: var(--wda-text-muted);
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .card-footer {
+    padding: 8px 16px;
+    border-top: 1px solid var(--wda-border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 4px;
+  }
+}
+
+// ── Statistics Page ───────────────────────────────
+
+.stat-card {
+  position: relative;
+  overflow: hidden;
+  background: var(--wda-surface);
+  border: 1px solid var(--wda-border);
+  border-radius: var(--wda-radius);
+  padding: 24px 20px;
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: -20px;
+    right: -20px;
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: rgba(245, 166, 35, 0.08);
+  }
+
+  .stat-icon {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    font-size: 1.8rem;
+    opacity: 0.2;
+    color: var(--wda-primary);
+  }
+
+  .stat-number {
+    font-family: var(--wda-font-heading);
+    font-size: 2.8rem;
+    font-weight: 700;
+    color: var(--wda-primary);
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+
+  .stat-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--wda-text-muted);
+    font-weight: 600;
+  }
+}
+
+.progress-card {
+  background: linear-gradient(135deg,
+    var(--wda-surface) 0%,
+    rgba(245, 166, 35, 0.05) 100%);
+  border: 1px solid var(--wda-border);
+  border-left: 4px solid var(--wda-primary);
+  border-radius: var(--wda-radius);
+  padding: 24px 28px;
+}
+
+.progress-bar-container {
+  background: var(--wda-surface-2);
+  border-radius: 4px;
+  height: 10px;
+  overflow: hidden;
+  margin: 12px 0 8px;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--wda-primary), #F5C842);
+  transition: width 0.6s ease;
+}
+
+.chart-card {
+  background: var(--wda-surface);
+  border: 1px solid var(--wda-border);
+  border-radius: var(--wda-radius);
+  overflow: hidden;
+}
+
+.chart-header {
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--wda-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.chart-title {
+  font-family: var(--wda-font-heading);
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 2px;
+  color: var(--wda-text);
+}
+
+.chart-subtitle {
+  font-size: 0.75rem;
+  color: var(--wda-text-muted);
+  margin: 0;
+}
+
+.chart-body {
+  padding: 20px 24px 16px;
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  margin-right: 4px;
+
+  &.active { background: var(--wda-primary); }
+  &.zero { background: var(--wda-border); }
+}
+
+.chart-legend {
+  font-size: 0.75rem;
+  color: var(--wda-text-muted);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.scene-extreme-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.scene-extreme-card {
+  background: var(--wda-surface);
+  border: 1px solid var(--wda-border);
+  border-radius: var(--wda-radius);
+  padding: 20px;
+  cursor: pointer;
+  transition: box-shadow 0.2s;
+
+  &:hover { box-shadow: var(--wda-shadow-md); }
+
+  .extreme-label {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--wda-text-muted);
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  .extreme-title {
+    font-family: var(--wda-font-heading);
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--wda-text);
+  }
+
+  .extreme-count {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--wda-primary);
+    font-family: var(--wda-font-heading);
+  }
+
+  .extreme-unit {
+    font-size: 0.78rem;
+    color: var(--wda-text-muted);
+    margin-left: 4px;
+  }
+}
+
+// ── Autocomplete Ghost ────────────────────────────
+
+.ProseMirror .autocomplete-ghost {
+  color: var(--wda-text-muted);
+  opacity: 0.45;
+  pointer-events: none;
+  user-select: none;
+  font-style: italic;
+  white-space: pre;
+}

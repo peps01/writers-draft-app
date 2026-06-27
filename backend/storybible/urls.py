@@ -11,6 +11,9 @@ projects_router = routers.NestedSimpleRouter(router, 'projects', lookup='project
 projects_router.register('characters', views.CharacterViewSet, basename='project-characters')
 projects_router.register('places', views.PlaceViewSet, basename='project-places')
 projects_router.register('timeline-events', views.TimelineEventViewSet, basename='project-timeline-events')
+projects_router.register('groups', views.GroupViewSet, basename='project-groups')
+projects_router.register('items', views.ItemViewSet, basename='project-items')
+projects_router.register('lore', views.LoreViewSet, basename='project-lore')
 projects_router.register('scenes', views.SceneViewSet, basename='project-scenes')
 projects_router.register('conversations', views.ConversationViewSet, basename='project-conversations')
 
