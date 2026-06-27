@@ -209,15 +209,23 @@
             </template>
 
             <template v-else>
-              <div
-                v-for="scene in scenesStore.scenes"
-                :key="scene.id"
-                class="wda-scene-item"
-                :class="{ 'wda-scene-item--active': selectedSceneId === scene.id }"
-                @click="selectScene(scene.id)"
+              <q-virtual-scroll
+                :items="scenesStore.scenes"
+                virtual-scroll-item-size="48"
+                virtual-scroll-slice-size="20"
+                style="height: 100%"
               >
-                <span class="wda-scene-item__title ellipsis">{{ scene.title || 'Untitled Scene' }}</span>
-              </div>
+                <template v-slot:default="{ item }">
+                  <div
+                    :key="item.id"
+                    class="wda-scene-item"
+                    :class="{ 'wda-scene-item--active': selectedSceneId === item.id }"
+                    @click="selectScene(item.id)"
+                  >
+                    <span class="wda-scene-item__title ellipsis">{{ item.title || 'Untitled Scene' }}</span>
+                  </div>
+                </template>
+              </q-virtual-scroll>
             </template>
           </div>
         </div>
@@ -362,6 +370,9 @@ import { useStatisticsStore } from '@/stores/statistics'
 import { useCharactersStore } from '@/stores/characters'
 import { usePlacesStore } from '@/stores/places'
 import { useTimelineEventsStore } from '@/stores/timelineEvents'
+import { useGroupsStore } from '@/stores/groups'
+import { useItemsStore } from '@/stores/items'
+import { useLoreStore } from '@/stores/lore'
 import { api } from '@/boot/axios'
 import { Chart, registerables } from 'chart.js'
 import { renderMarkdown } from '@/utils/markdown'
@@ -377,6 +388,9 @@ const statisticsStore = useStatisticsStore()
 const charactersStore = useCharactersStore()
 const placesStore = usePlacesStore()
 const timelineEventsStore = useTimelineEventsStore()
+const groupsStore = useGroupsStore()
+const itemsStore = useItemsStore()
+const loreStore = useLoreStore()
 
 const stripRef = ref(null)
 const chartCanvas = ref(null)
@@ -435,6 +449,9 @@ const debouncedLoadProjectData = debounce(async (projectId) => {
   await charactersStore.fetchCharacters(projectId)
   await placesStore.fetchPlaces(projectId)
   await timelineEventsStore.fetchTimelineEvents(projectId)
+  await groupsStore.fetchGroups(projectId)
+  await itemsStore.fetchItems(projectId)
+  await loreStore.fetchLore(projectId)
   if (scenesStore.scenes.length > 0) {
     selectScene(scenesStore.scenes[0].id)
   }
@@ -469,6 +486,24 @@ const tagChips = computed(() => {
     for (const id of scene.timeline_events) {
       const e = timelineEventsStore.timelineEvents.find((ev) => ev.id === id)
       if (e) chips.push({ type: 'event', id: e.id, label: `Event: ${e.title}` })
+    }
+  }
+  if (scene.groups) {
+    for (const id of scene.groups) {
+      const g = groupsStore.groups.find((gr) => gr.id === id)
+      if (g) chips.push({ type: 'group', id: g.id, label: `Group: ${g.name}` })
+    }
+  }
+  if (scene.items) {
+    for (const id of scene.items) {
+      const i = itemsStore.items.find((it) => it.id === id)
+      if (i) chips.push({ type: 'item', id: i.id, label: `Item: ${i.name}` })
+    }
+  }
+  if (scene.lore) {
+    for (const id of scene.lore) {
+      const l = loreStore.lore.find((lo) => lo.id === id)
+      if (l) chips.push({ type: 'lore', id: l.id, label: `Lore: ${l.title}` })
     }
   }
   return chips

@@ -1397,13 +1397,13 @@ watch(activeScene, (scene, oldScene) => {
 })
 
 const getSuggestions = () => [
-  ...charactersStore.characters.map(c => c.name),
-  ...placesStore.places.map(p => p.name),
-  ...timelineEventsStore.timelineEvents.map(e => e.title),
-  ...groupsStore.groups.map(g => g.name),
-  ...itemsStore.items.map(i => i.name),
-  ...loreStore.lore.map(l => l.title),
-].filter(Boolean)
+  ...charactersStore.characters.map(c => ({ type: 'character', label: c.name, insertText: c.name })),
+  ...placesStore.places.map(p => ({ type: 'place', label: p.name, insertText: p.name })),
+  ...timelineEventsStore.timelineEvents.map(e => ({ type: 'event', label: e.title, insertText: e.title })),
+  ...groupsStore.groups.map(g => ({ type: 'group', label: g.name, insertText: g.name })),
+  ...itemsStore.items.map(i => ({ type: 'item', label: i.name, insertText: i.name })),
+  ...loreStore.lore.map(l => ({ type: 'lore', label: l.title, insertText: l.title })),
+].filter(s => s.insertText)
 
 function relativeTime(dateStr) {
   if (!dateStr) return ''

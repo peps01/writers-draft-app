@@ -270,7 +270,8 @@ h3 {
 }
 
 .wda-project-card {
-  min-width: calc(50% - 24px);
+  min-width: 320px;
+  max-width: 320px;
   scroll-snap-align: start;
   flex-shrink: 0;
   display: flex;
@@ -808,6 +809,7 @@ h3 {
   gap: 8px;
 }
 
+.story-bible-tag,
 .wda-tag-chip {
   display: inline-block;
   border: 1px solid var(--wda-border);
@@ -2087,13 +2089,52 @@ body.body--dark .entity-type-badge {
   }
 }
 
-// ── Autocomplete Ghost ────────────────────────────
+// ── Autocomplete Popup ─────────────────────────────
 
-.ProseMirror .autocomplete-ghost {
+.autocomplete-popup {
+  position: fixed;
+  z-index: 1000;
+  min-width: 200px;
+  max-width: 320px;
+  max-height: 280px;
+  overflow-y: auto;
+  background: var(--wda-surface);
+  border: 1px solid var(--wda-border-strong);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.15);
+  padding: 6px 0;
+  font-family: 'Inter', sans-serif;
+
+  &::-webkit-scrollbar { width: 4px; }
+  &::-webkit-scrollbar-track { background: transparent; }
+  &::-webkit-scrollbar-thumb { background: var(--wda-border-strong); border-radius: 2px; }
+}
+
+.autocomplete-popup__header {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   color: var(--wda-text-muted);
-  opacity: 0.45;
-  pointer-events: none;
-  user-select: none;
-  font-style: italic;
-  white-space: pre;
+  padding: 6px 12px 4px;
+  opacity: 0.7;
+}
+
+.autocomplete-popup__item {
+  padding: 6px 14px;
+  font-size: 13px;
+  color: var(--wda-text-secondary);
+  cursor: pointer;
+  transition: background .12s ease, color .12s ease;
+
+  &:hover {
+    background: rgba(244, 168, 37, 0.08);
+    color: var(--wda-text);
+  }
+
+  &--active {
+    background: rgba(244, 168, 37, 0.12);
+    color: var(--wda-text);
+    font-weight: 500;
+  }
 }
