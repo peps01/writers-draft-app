@@ -21,6 +21,7 @@ scenes_router = routers.NestedSimpleRouter(
     projects_router, 'scenes', lookup='scene'
 )
 scenes_router.register('versions', views.SceneVersionViewSet, basename='project-scene-versions')
+scenes_router.register('notes', views.SceneNoteViewSet, basename='project-scene-notes')
 
 conversations_router = routers.NestedSimpleRouter(
     projects_router, 'conversations', lookup='conversation'

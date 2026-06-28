@@ -1,57 +1,5 @@
 <template>
   <div class="editor-toolbar">
-    <!-- Text formatting -->
-    <q-btn
-      v-if="editor"
-      flat
-      dense
-      icon="format_bold"
-      size="sm"
-      :color="editor.isActive('bold') ? 'primary' : ''"
-      @click="editor.chain().focus().toggleBold().run()"
-      title="Bold (Ctrl+B)"
-    >
-      <q-tooltip>Bold</q-tooltip>
-    </q-btn>
-    <q-btn
-      v-if="editor"
-      flat
-      dense
-      icon="format_italic"
-      size="sm"
-      :color="editor.isActive('italic') ? 'primary' : ''"
-      @click="editor.chain().focus().toggleItalic().run()"
-      title="Italic (Ctrl+I)"
-    >
-      <q-tooltip>Italic</q-tooltip>
-    </q-btn>
-    <q-btn
-      v-if="editor"
-      flat
-      dense
-      icon="format_underline"
-      size="sm"
-      :color="editor.isActive('underline') ? 'primary' : ''"
-      @click="editor.chain().focus().toggleUnderline().run()"
-      title="Underline (Ctrl+U)"
-    >
-      <q-tooltip>Underline</q-tooltip>
-    </q-btn>
-    <q-btn
-      v-if="editor"
-      flat
-      dense
-      icon="highlight"
-      size="sm"
-      :color="editor.isActive('highlight') ? 'primary' : ''"
-      @click="editor.chain().focus().toggleHighlight().run()"
-      title="Highlight"
-    >
-      <q-tooltip>Highlight</q-tooltip>
-    </q-btn>
-
-    <q-separator vertical class="q-mx-xs" />
-
     <!-- Headings -->
     <q-btn
       v-if="editor"
@@ -60,6 +8,7 @@
       label="H1"
       size="sm"
       :color="editor.isActive('heading', { level: 1 }) ? 'primary' : ''"
+      :class="{ 'active-format': editor.isActive('heading', { level: 1 }) }"
       @click="editor.chain().focus().toggleHeading({ level: 1 }).run()"
     />
     <q-btn
@@ -69,6 +18,7 @@
       label="H2"
       size="sm"
       :color="editor.isActive('heading', { level: 2 }) ? 'primary' : ''"
+      :class="{ 'active-format': editor.isActive('heading', { level: 2 }) }"
       @click="editor.chain().focus().toggleHeading({ level: 2 }).run()"
     />
     <q-btn
@@ -78,10 +28,11 @@
       label="H3"
       size="sm"
       :color="editor.isActive('heading', { level: 3 }) ? 'primary' : ''"
+      :class="{ 'active-format': editor.isActive('heading', { level: 3 }) }"
       @click="editor.chain().focus().toggleHeading({ level: 3 }).run()"
     />
 
-    <q-separator vertical class="q-mx-xs" />
+    <q-separator vertical class="toolbar-sep" />
 
     <!-- Insert -->
     <q-btn
@@ -102,13 +53,14 @@
       icon="format_quote"
       size="sm"
       :color="editor.isActive('blockquote') ? 'primary' : ''"
+      :class="{ 'active-format': editor.isActive('blockquote') }"
       @click="editor.chain().focus().toggleBlockquote().run()"
       title="Blockquote"
     >
       <q-tooltip>Blockquote</q-tooltip>
     </q-btn>
 
-    <q-separator vertical class="q-mx-xs" />
+    <q-separator vertical class="toolbar-sep" />
 
     <!-- History -->
     <q-btn
@@ -134,7 +86,63 @@
       <q-tooltip>Redo</q-tooltip>
     </q-btn>
 
-    <q-separator vertical class="q-mx-xs" />
+    <q-separator vertical class="toolbar-sep" />
+
+    <!-- Text formatting -->
+    <q-btn
+      v-if="editor"
+      flat
+      dense
+      icon="format_bold"
+      size="sm"
+      :color="editor.isActive('bold') ? 'primary' : ''"
+      :class="{ 'active-format': editor.isActive('bold') }"
+      @click="editor.chain().focus().toggleBold().run()"
+      title="Bold (Ctrl+B)"
+    >
+      <q-tooltip>Bold</q-tooltip>
+    </q-btn>
+    <q-btn
+      v-if="editor"
+      flat
+      dense
+      icon="format_italic"
+      size="sm"
+      :color="editor.isActive('italic') ? 'primary' : ''"
+      :class="{ 'active-format': editor.isActive('italic') }"
+      @click="editor.chain().focus().toggleItalic().run()"
+      title="Italic (Ctrl+I)"
+    >
+      <q-tooltip>Italic</q-tooltip>
+    </q-btn>
+    <q-btn
+      v-if="editor"
+      flat
+      dense
+      icon="format_underline"
+      size="sm"
+      :color="editor.isActive('underline') ? 'primary' : ''"
+      :class="{ 'active-format': editor.isActive('underline') }"
+      @click="editor.chain().focus().toggleUnderline().run()"
+      title="Underline (Ctrl+U)"
+    >
+      <q-tooltip>Underline</q-tooltip>
+    </q-btn>
+    <q-btn
+      v-if="editor"
+      flat
+      dense
+      icon="highlight"
+      size="sm"
+      :color="editor.isActive('highlight') ? 'primary' : ''"
+      :class="{ 'active-format': editor.isActive('highlight') }"
+      @click="editor.chain().focus().toggleHighlight().run()"
+      title="Highlight"
+    >
+      <q-tooltip>Highlight</q-tooltip>
+    </q-btn>
+
+    <q-separator vertical class="toolbar-sep" />
 
     <!-- Font Family -->
     <q-select
@@ -145,6 +153,10 @@
       size="sm"
       style="min-width: 100px"
       borderless
+      emit-value
+      map-options
+      option-value="value"
+      option-label="label"
       @update:model-value="emitFontFamilyChange"
     />
 
@@ -159,7 +171,7 @@
       @update:model-value="emitFontSizeChange"
     />
 
-    <q-separator vertical class="q-mx-xs" />
+    <q-separator vertical class="toolbar-sep" />
 
     <!-- Find & Replace Toggle -->
     <q-btn
@@ -167,7 +179,7 @@
       dense
       icon="find_replace"
       size="sm"
-      :color="showFindReplace ? 'primary' : ''"
+      :class="{ 'active-format': showFindReplace }"
       @click="$emit('toggleFindReplace')"
       title="Find & Replace (Ctrl+F)"
     >
@@ -179,8 +191,7 @@
     <!-- Stats -->
     <div
       v-if="wordCount !== undefined"
-      class="text-caption q-mr-sm"
-      style="white-space: nowrap; color: var(--wda-text-muted)"
+      class="toolbar-stats"
     >
       {{ wordCount }} words
       <span class="q-ml-xs">&middot; ~{{ readingTime }} min read</span>

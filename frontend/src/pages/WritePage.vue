@@ -38,14 +38,14 @@
         No scenes yet. Create one to start writing.
       </div>
 
-      <div v-else ref="sceneListContainer" style="overflow-y: auto; flex: 1">
+      <div v-else ref="sceneListContainer" class="scene-list">
         <div v-for="scene in scenesStore.scenes" :key="scene.id" :data-id="scene.id">
           <div
             class="scene-card"
             :class="{ active: scenesStore.activeSceneId === scene.id }"
             @click="scenesStore.setActiveScene(scene.id)"
           >
-            <div style="display: flex; align-items: center; gap: 8px">
+            <div style="display: flex; align-items: center; gap: 8px; min-width: 0">
               <q-icon
                 name="drag_indicator"
                 class="drag-handle cursor-grab"
@@ -56,7 +56,7 @@
                 <div class="scene-card-order">#{{ scene.order + 1 }}</div>
                 <div class="scene-card-title">{{ scene.title || 'Untitled Scene' }}</div>
               </div>
-              <q-btn flat dense round icon="more_vert" size="sm" @click.stop>
+              <q-btn flat dense round icon="more_vert" size="sm" style="flex-shrink: 0" @click.stop>
                 <q-menu anchor="bottom end" self="top end">
                   <q-list dense style="min-width: 120px">
                     <q-item clickable v-close-popup @click.stop="confirmDeleteScene(scene)">
@@ -104,18 +104,21 @@
           border-bottom: 1px solid var(--wda-border);
         "
       >
-        <div style="display: flex; align-items: center; gap: 4px">
-          <q-btn flat dense round icon="history" size="sm" @click="openHistoryDrawer">
+        <div class="panel-icon-buttons">
+          <q-btn flat dense round icon="history" size="sm" class="panel-icon-btn" :class="{ active: drawerOpen && drawerMode === 'history' }" @click="openHistoryDrawer">
             <q-tooltip>Version History</q-tooltip>
           </q-btn>
-          <q-btn flat dense round icon="auto_awesome" size="sm" @click="openAiDrawer">
+          <q-btn flat dense round icon="auto_awesome" size="sm" class="panel-icon-btn" :class="{ active: drawerOpen && drawerMode === 'ai' }" @click="openAiDrawer">
             <q-tooltip>AI Assistant</q-tooltip>
           </q-btn>
-          <q-btn flat dense round icon="local_offer" size="sm" @click="openTagsDrawer">
+          <q-btn flat dense round icon="local_offer" size="sm" class="panel-icon-btn" :class="{ active: tagsDrawerOpen }" @click="openTagsDrawer">
             <q-tooltip>Story Bible Tags</q-tooltip>
-            <q-badge v-if="totalTagCount > 0" floating color="primary" style="font-size: 0.6rem; min-width: 14px; height: 14px; line-height: 14px; padding: 0 4px">
-              {{ totalTagCount }}
-            </q-badge>
+            <span v-if="totalTagCount > 0" class="icon-badge">{{ totalTagCount }}</span>
+          </q-btn>
+
+          <q-btn flat dense round icon="sticky_note_2" size="sm" class="panel-icon-btn" :class="{ active: notesDrawerOpen }" @click="openNotesDrawer">
+            <q-tooltip>Scene Notes</q-tooltip>
+            <span v-if="unresolvedNotesCount > 0" class="icon-badge">{{ unresolvedNotesCount }}</span>
           </q-btn>
 
           <q-btn
@@ -124,6 +127,7 @@
             round
             :icon="fullscreen ? 'fullscreen_exit' : 'fullscreen'"
             size="sm"
+            class="panel-icon-btn"
             @click="toggleFullscreen"
           >
             <q-tooltip>{{ fullscreen ? 'Exit Fullscreen' : 'Fullscreen' }}</q-tooltip>
@@ -168,9 +172,8 @@
             v-model="titleDraft"
             label="Scene title"
             dense
-            outlined
-            class="col"
-            style="font-family: var(--wda-font-heading)"
+            borderless
+            class="col scene-title-input"
             @blur="saveTitle"
             @keyup.enter="saveTitle"
           />
@@ -186,7 +189,7 @@
             <span class="text-caption q-ml-xs">Formatting</span>
             <span v-if="!showToolbar && titleDraft" class="text-caption q-ml-sm" style="opacity:0.6; flex: 1">— {{ titleDraft }}</span>
             <span v-else style="flex: 1" />
-            <div :class="'save-status ' + saveStatusClass" @click.stop>
+            <div :class="'save-status-badge ' + saveStatusClass" @click.stop>
               <q-spinner v-if="scenesStore.saveStatus === 'saving'" size="xs" class="q-mr-xs" />
               {{ saveStatusText }}
             </div>
@@ -212,12 +215,6 @@
         />
 
         <div style="position: relative; flex: 1; display: flex; flex-direction: column; min-height: 0">
-          <div
-            class="text-caption"
-            style="position: absolute; top: 6px; right: 14px; color: var(--wda-text-muted); z-index: 1; font-size: 0.7rem"
-          >
-            {{ liveWordCount }} {{ liveWordCount === 1 ? 'word' : 'words' }}
-          </div>
           <RichTextEditor
             ref="richEditorRef"
             v-model="sceneContent"
@@ -230,12 +227,10 @@
           />
         </div>
 
-        <div v-if="!fullscreen" class="tags-bar">
-          <div class="tags-bar-inner cursor-pointer" @click="openTagsDrawer">
-            <q-icon name="local_offer" size="sm" />
-            <span class="text-caption q-ml-xs">Story Bible — {{ tagsSummary }}</span>
-            <q-icon name="chevron_right" size="sm" class="q-ml-xs" />
-          </div>
+        <div v-if="!fullscreen" class="story-bible-bar" @click="openTagsDrawer">
+          <q-icon name="local_offer" size="sm" class="bar-icon" />
+          <span class="bar-text">Story Bible — {{ tagsSummary }}</span>
+          <q-icon name="chevron_right" size="sm" class="bar-chevron" />
         </div>
       </template>
     </div>
@@ -343,99 +338,110 @@
 
     <!-- Tags Panel -->
     <q-dialog v-model="tagsDrawerOpen" position="right" maximized>
-      <q-card class="drawer-card" :style="{ width: '380px', maxWidth: '90vw' }" flat>
-        <div class="q-pa-md" style="height: 100%; display: flex; flex-direction: column">
-          <div class="row items-center justify-between q-mb-md">
-            <div class="text-h6 ellipsis" style="font-family: var(--wda-font-heading)">
-              Story Bible Tags
-            </div>
+      <q-card class="drawer-card right-panel tags-panel" :style="{ width: '380px', maxWidth: '90vw' }" flat>
+        <div class="tags-panel-container" style="display: flex; flex-direction: column">
+          <div class="panel-header">
+            <div class="panel-title">Story Bible Tags</div>
             <q-btn flat dense round icon="close" size="sm" @click="closeTagsDrawer" />
           </div>
 
-          <div class="scroll" style="flex: 1; overflow-y: auto">
+          <div class="panel-body">
             <div v-if="characterOptions.length > 0 || placeOptions.length > 0 || timelineEventOptions.length > 0 || groupOptions.length > 0 || itemOptions.length > 0 || loreOptions.length > 0">
-              <q-select
-                v-model="selectedCharacters"
-                :options="characterOptions"
-                label="Characters"
-                multiple
-                use-chips
-                dense
-                outlined
-                color="primary"
-                clearable
-                class="q-mb-md"
-                @update:model-value="saveTags"
-              />
+              <div class="tag-section">
+                <div class="tag-section-label">Characters</div>
+                <q-select
+                  v-model="selectedCharacters"
+                  :options="characterOptions"
+                  label="Characters"
+                  multiple
+                  use-chips
+                  dense
+                  outlined
+                  color="primary"
+                  clearable
+                  @update:model-value="saveTags"
+                />
+              </div>
 
-              <q-select
-                v-model="selectedPlaces"
-                :options="placeOptions"
-                label="Places"
-                multiple
-                use-chips
-                dense
-                outlined
-                color="primary"
-                clearable
-                class="q-mb-md"
-                @update:model-value="saveTags"
-              />
+              <div class="tag-section">
+                <div class="tag-section-label">Places</div>
+                <q-select
+                  v-model="selectedPlaces"
+                  :options="placeOptions"
+                  label="Places"
+                  multiple
+                  use-chips
+                  dense
+                  outlined
+                  color="primary"
+                  clearable
+                  @update:model-value="saveTags"
+                />
+              </div>
 
-              <q-select
-                v-model="selectedTimelineEvents"
-                :options="timelineEventOptions"
-                label="Timeline Events"
-                multiple
-                use-chips
-                dense
-                outlined
-                color="primary"
-                clearable
-                class="q-mb-md"
-                @update:model-value="saveTags"
-              />
+              <div class="tag-section">
+                <div class="tag-section-label">Timeline Events</div>
+                <q-select
+                  v-model="selectedTimelineEvents"
+                  :options="timelineEventOptions"
+                  label="Timeline Events"
+                  multiple
+                  use-chips
+                  dense
+                  outlined
+                  color="primary"
+                  clearable
+                  @update:model-value="saveTags"
+                />
+              </div>
 
-              <q-select
-                v-model="selectedGroups"
-                :options="groupOptions"
-                label="Groups"
-                multiple
-                use-chips
-                dense
-                outlined
-                color="primary"
-                clearable
-                class="q-mb-md"
-                @update:model-value="saveTags"
-              />
+              <div class="tag-section">
+                <div class="tag-section-label">Groups</div>
+                <q-select
+                  v-model="selectedGroups"
+                  :options="groupOptions"
+                  label="Groups"
+                  multiple
+                  use-chips
+                  dense
+                  outlined
+                  color="primary"
+                  clearable
+                  @update:model-value="saveTags"
+                />
+              </div>
 
-              <q-select
-                v-model="selectedItems"
-                :options="itemOptions"
-                label="Items"
-                multiple
-                use-chips
-                dense
-                outlined
-                color="primary"
-                clearable
-                class="q-mb-md"
-                @update:model-value="saveTags"
-              />
+              <div class="tag-section">
+                <div class="tag-section-label">Items</div>
+                <q-select
+                  v-model="selectedItems"
+                  :options="itemOptions"
+                  label="Items"
+                  multiple
+                  use-chips
+                  dense
+                  outlined
+                  color="primary"
+                  clearable
+                  @update:model-value="saveTags"
+                />
+              </div>
 
-              <q-select
-                v-model="selectedLore"
-                :options="loreOptions"
-                label="Lore"
-                multiple
-                use-chips
-                dense
-                outlined
-                color="primary"
-                clearable
-                @update:model-value="saveTags"
-              />
+              <div class="tag-section">
+                <div class="tag-section-label">Lore</div>
+                <q-select
+                  v-model="selectedLore"
+                  :options="loreOptions"
+                  label="Lore"
+                  multiple
+                  use-chips
+                  dense
+                  outlined
+                  color="primary"
+                  clearable
+                  @update:model-value="saveTags"
+                />
+              </div>
             </div>
             <div v-else class="text-center q-mt-xl" style="color: var(--wda-text-muted)">
               <q-icon name="local_offer" size="48px" class="q-mb-sm" style="opacity: 0.4" />
@@ -449,15 +455,102 @@
       </q-card>
     </q-dialog>
 
+    <!-- Notes Panel -->
+    <q-dialog v-model="notesDrawerOpen" position="right" maximized>
+      <q-card class="drawer-card right-panel" :style="{ width: '380px', maxWidth: '90vw' }" flat>
+        <div class="q-pa-md" style="height: 100%; display: flex; flex-direction: column">
+          <div class="panel-header">
+            <div class="panel-title">Scene Notes &mdash; {{ activeScene?.title || 'Untitled Scene' }}</div>
+            <q-btn flat dense round icon="close" size="sm" @click="closeNotesDrawer" />
+          </div>
+
+          <div class="row items-center q-gutter-xs q-mb-sm">
+            <q-btn v-for="ft in noteFilterTypes" :key="ft.value" flat dense no-caps
+              :label="ft.label" size="sm"
+              :color="noteFilter === ft.value ? 'primary' : ''"
+              :text-color="noteFilter === ft.value ? '' : 'grey'"
+              @click="noteFilter = ft.value"
+            />
+          </div>
+
+          <div v-if="notesStore.saving" class="text-center q-mb-sm">
+            <q-spinner size="sm" color="primary" />
+          </div>
+
+          <div class="scroll" style="flex: 1; overflow-y: auto; margin: 0 -4px; padding: 0 4px">
+            <div v-if="noteFormVisible" class="q-mb-md" style="background: var(--wda-surface-2); border-radius: var(--wda-radius); padding: 12px">
+              <q-input v-model="noteFormContent" type="textarea" autogrow
+                :placeholder="noteEditingId ? 'Edit your note...' : 'Add a note...'"
+                outlined dense color="primary" class="q-mb-sm"
+              />
+              <q-select v-model="noteFormType" :options="noteTypeOptions" dense outlined color="primary" class="q-mb-sm" emit-value map-options />
+              <div class="row items-center justify-between">
+                <q-btn flat no-caps label="Cancel" size="sm" color="grey" @click="cancelNoteForm" />
+                <q-btn unelevated no-caps color="primary" size="sm" label="Save"
+                  :disable="!noteFormContent.trim()"
+                  @click="saveNoteForm"
+                />
+              </div>
+            </div>
+
+            <div v-if="notesStore.loading && notesStore.notes.length === 0" class="text-center q-mt-lg" style="color: var(--wda-text-muted)">
+              <q-spinner size="md" color="primary" />
+            </div>
+
+            <div v-else-if="filteredNotes.length === 0 && !notesStore.loading" class="text-center q-mt-xl" style="color: var(--wda-text-muted)">
+              <q-icon name="sticky_note_2" size="48px" class="q-mb-sm" style="opacity: 0.4" />
+              <p>No notes yet. Add a note to capture thoughts, reminders, or things to fix later.</p>
+              <q-btn flat color="primary" no-caps label="Add a note" size="sm" icon="add" @click="showNoteForm" />
+            </div>
+
+            <div v-for="note in filteredNotes" :key="note.id" class="q-mb-sm">
+              <div class="wda-card" style="padding: 12px" :style="{ opacity: note.resolved ? 0.5 : 1 }">
+                <div class="row items-center justify-between no-wrap q-mb-xs">
+                  <div class="row items-center no-wrap" style="gap: 6px">
+                    <q-badge :style="{ background: noteTypeColor(note.note_type) }">
+                      {{ noteTypeLabel(note.note_type) }}
+                    </q-badge>
+                    <q-checkbox v-model="note.resolved" size="sm" dense
+                      @update:model-value="toggleResolved(note)"
+                    />
+                  </div>
+                  <div class="row items-center no-wrap" style="gap: 2px">
+                    <q-btn flat dense round icon="edit" size="sm" @click="editNote(note)" />
+                    <q-btn flat dense round icon="delete" size="sm" @click="handleDeleteNote(note)" />
+                  </div>
+                </div>
+                <div class="text-body2" :style="{ textDecoration: note.resolved ? 'line-through' : 'none' }">
+                  {{ note.content }}
+                </div>
+                <div class="text-caption q-mt-xs text-grey">
+                  {{ relativeTime(note.created_at) }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="filteredNotes.length > 0" class="q-mt-sm text-center">
+            <q-btn flat no-caps size="sm" color="grey" @click="showNoteForm">
+              <q-icon name="add" size="sm" class="q-mr-xs" />Add Note
+            </q-btn>
+          </div>
+
+          <q-separator class="q-mb-sm" />
+
+          <div class="text-center">
+            <q-toggle v-model="showResolvedNotes" label="Show resolved" size="sm" color="primary" />
+          </div>
+        </div>
+      </q-card>
+    </q-dialog>
+
     <!-- Right Panel: Version History / AI Assistant (replaces q-drawer) -->
     <q-dialog v-model="drawerOpen" position="right" maximized>
-      <q-card class="drawer-card" :style="{ width: drawerWidth + 'px', maxWidth: '90vw' }" flat>
+      <q-card class="drawer-card right-panel" :style="{ width: drawerWidth + 'px', maxWidth: '90vw' }" flat>
         <div class="q-pa-md" style="height: 100%; display: flex; flex-direction: column">
           <template v-if="drawerMode === 'history'">
-            <div class="row items-center justify-between q-mb-md">
-              <div class="text-h6 ellipsis" style="font-family: var(--wda-font-heading)">
-                Version History &mdash; {{ activeScene?.title || 'Untitled Scene' }}
-              </div>
+            <div class="panel-header">
+              <div class="panel-title">Version History &mdash; {{ activeScene?.title || 'Untitled Scene' }}</div>
               <q-btn flat dense round icon="close" size="sm" @click="closeDrawer" />
             </div>
 
@@ -514,10 +607,8 @@
           </template>
 
           <template v-else-if="drawerMode === 'ai'">
-            <div class="row items-center justify-between q-mb-md">
-              <div class="text-h6 ellipsis" style="font-family: var(--wda-font-heading)">
-                AI Assistant &mdash; {{ activeScene?.title || 'Untitled Scene' }}
-              </div>
+            <div class="panel-header">
+              <div class="panel-title">AI Assistant &mdash; {{ activeScene?.title || 'Untitled Scene' }}</div>
               <div>
                 <q-btn flat dense round :icon="drawerExpanded ? 'chevron_right' : 'chevron_left'" size="sm" @click="toggleDrawerExpand">
                   <q-tooltip>{{ drawerExpanded ? 'Collapse' : 'Expand' }}</q-tooltip>
@@ -644,6 +735,17 @@
                       </div>
                     </div>
                   </template>
+                  <template v-else-if="msg.metadata?.type === 'writing_prompt'">
+                    <div style="max-width: 85%; border-left: 3px solid var(--wda-primary); background: rgba(245, 166, 35, 0.06); border-radius: var(--wda-radius); padding: 12px">
+                      <div class="row items-center q-gutter-xs q-mb-xs">
+                        <q-icon name="lightbulb" size="sm" color="primary" />
+                        <span class="text-weight-bold" style="color: var(--wda-primary)">Writing Prompt</span>
+                        <span class="text-caption text-grey">{{ relativeTime(msg.created_at) }}</span>
+                      </div>
+                      <div class="text-body2 q-mb-sm" style="white-space: pre-wrap">{{ msg.content }}</div>
+                      <q-btn flat dense no-caps color="primary" label="Try again →" size="sm" @click="handleGenerateWritingPrompt" />
+                    </div>
+                  </template>
                   <template v-else>
                     <div :class="msg.role === 'user' ? 'flex justify-end' : ''">
                       <q-card
@@ -683,20 +785,43 @@
                     </q-card-section>
                   </q-card>
                 </div>
+
+                <div v-if="conversationsStore.generatingPrompt" class="flex justify-start q-mb-sm">
+                  <q-card flat bordered style="max-width: 85%; display: inline-block">
+                    <q-card-section class="q-py-sm q-px-md">
+                      <q-icon name="lightbulb" size="sm" color="primary" class="q-mr-xs" />
+                      <span class="text-grey">Generating prompt...</span>
+                    </q-card-section>
+                  </q-card>
+                </div>
               </div>
 
-              <q-btn
-                flat
-                color="warning"
-                icon="warning"
-                label="Check for Contradictions"
-                no-caps
-                size="sm"
-                class="full-width q-mb-sm"
-                :disable="!activeScene || conversationsStore.sending || conversationsStore.checkingContradictions"
-                :loading="conversationsStore.checkingContradictions"
-                @click="handleCheckContradictions"
-              />
+              <div class="row items-center q-gutter-sm q-mb-sm">
+                <q-btn
+                  flat
+                  color="warning"
+                  icon="warning"
+                  label="Check for Contradictions"
+                  no-caps
+                  size="sm"
+                  class="col"
+                  :disable="!activeScene || conversationsStore.sending || conversationsStore.checkingContradictions || conversationsStore.generatingPrompt"
+                  :loading="conversationsStore.checkingContradictions"
+                  @click="handleCheckContradictions"
+                />
+                <q-btn
+                  flat
+                  color="primary"
+                  icon="lightbulb"
+                  label="Writing Prompt"
+                  no-caps
+                  size="sm"
+                  class="col"
+                  :disable="!activeScene || conversationsStore.sending || conversationsStore.checkingContradictions || conversationsStore.generatingPrompt"
+                  :loading="conversationsStore.generatingPrompt"
+                  @click="handleGenerateWritingPrompt"
+                />
+              </div>
 
               <div class="row items-end q-gutter-sm">
                 <q-input
@@ -735,6 +860,7 @@ import { useRoute } from 'vue-router'
 import { useScenesStore } from '@/stores/scenes'
 import { useSceneVersionsStore } from '@/stores/sceneVersions'
 import { useConversationsStore } from '@/stores/conversations'
+import { useNotesStore } from '@/stores/notes'
 import EditorToolbar from '@/components/EditorToolbar.vue'
 import FindReplaceBar from '@/components/FindReplaceBar.vue'
 import RichTextEditor from '@/components/RichTextEditor.vue'
@@ -753,6 +879,7 @@ const projectId = route.params.id
 const scenesStore = useScenesStore()
 const sceneVersionsStore = useSceneVersionsStore()
 const conversationsStore = useConversationsStore()
+const notesStore = useNotesStore()
 const charactersStore = useCharactersStore()
 const placesStore = usePlacesStore()
 const timelineEventsStore = useTimelineEventsStore()
@@ -1257,6 +1384,134 @@ function saveTags() {
   })
 }
 
+// ---- Scene Notes ----
+const notesDrawerOpen = ref(false)
+const noteFilter = ref('all')
+const noteFormVisible = ref(false)
+const noteFormContent = ref('')
+const noteFormType = ref('general')
+const noteEditingId = ref(null)
+const showResolvedNotes = ref(false)
+
+const noteFilterTypes = [
+  { label: 'All', value: 'all' },
+  { label: 'General', value: 'general' },
+  { label: 'To-Do', value: 'todo' },
+  { label: 'Research', value: 'research' },
+  { label: 'Warning', value: 'warning' },
+  { label: 'Idea', value: 'idea' },
+]
+
+const noteTypeOptions = [
+  { label: 'General', value: 'general' },
+  { label: 'To-Do', value: 'todo' },
+  { label: 'Research', value: 'research' },
+  { label: 'Warning', value: 'warning' },
+  { label: 'Idea', value: 'idea' },
+]
+
+const unresolvedNotesCount = computed(() => {
+  return notesStore.notes.filter((n) => !n.resolved).length
+})
+
+const filteredNotes = computed(() => {
+  let result = notesStore.notes
+  if (noteFilter.value !== 'all') {
+    result = result.filter((n) => n.note_type === noteFilter.value)
+  }
+  if (!showResolvedNotes.value) {
+    result = result.filter((n) => !n.resolved)
+  }
+  return result
+})
+
+function noteTypeColor(type) {
+  const colors = {
+    general: 'var(--wda-text-muted)',
+    todo: 'var(--wda-primary)',
+    research: '#4A90D9',
+    warning: '#C75D3A',
+    idea: '#7B5EA7',
+  }
+  return colors[type] || colors.general
+}
+
+function noteTypeLabel(type) {
+  const labels = {
+    general: 'General',
+    todo: 'To-Do',
+    research: 'Research',
+    warning: 'Warning',
+    idea: 'Idea',
+  }
+  return labels[type] || type
+}
+
+function openNotesDrawer() {
+  notesDrawerOpen.value = true
+  if (activeScene.value) {
+    notesStore.fetchNotes(projectId, activeScene.value.id)
+  }
+}
+
+function closeNotesDrawer() {
+  notesDrawerOpen.value = false
+  noteFormVisible.value = false
+  noteEditingId.value = null
+  noteFormContent.value = ''
+  noteFormType.value = 'general'
+}
+
+function showNoteForm() {
+  noteEditingId.value = null
+  noteFormContent.value = ''
+  noteFormType.value = 'general'
+  noteFormVisible.value = true
+}
+
+function cancelNoteForm() {
+  noteFormVisible.value = false
+  noteEditingId.value = null
+  noteFormContent.value = ''
+  noteFormType.value = 'general'
+}
+
+async function saveNoteForm() {
+  const content = noteFormContent.value.trim()
+  if (!content || !activeScene.value) return
+  if (noteEditingId.value) {
+    await notesStore.updateNote(projectId, activeScene.value.id, noteEditingId.value, {
+      content,
+      note_type: noteFormType.value,
+    })
+  } else {
+    await notesStore.createNote(projectId, activeScene.value.id, {
+      content,
+      note_type: noteFormType.value,
+    })
+  }
+  cancelNoteForm()
+}
+
+function editNote(note) {
+  noteEditingId.value = note.id
+  noteFormContent.value = note.content
+  noteFormType.value = note.note_type
+  noteFormVisible.value = true
+}
+
+async function toggleResolved(note) {
+  if (!activeScene.value) return
+  await notesStore.updateNote(projectId, activeScene.value.id, note.id, {
+    resolved: note.resolved,
+  })
+}
+
+async function handleDeleteNote(note) {
+  if (!activeScene.value) return
+  await notesStore.deleteNote(projectId, activeScene.value.id, note.id)
+}
+
 // ---- Version History ----
 const showRestoreDialog = ref(false)
 const restoreVersionTarget = ref(null)
@@ -1364,8 +1619,17 @@ async function handleSendMessage() {
 }
 
 async function handleCheckContradictions() {
-  if (!activeScene.value || conversationsStore.sending || conversationsStore.checkingContradictions) return
+  if (!activeScene.value || conversationsStore.sending || conversationsStore.checkingContradictions || conversationsStore.generatingPrompt) return
   await conversationsStore.checkContradictions(projectId, activeScene.value.id)
+  if (!conversationsStore.error) {
+    await nextTick()
+    scrollToBottom()
+  }
+}
+
+async function handleGenerateWritingPrompt() {
+  if (!activeScene.value || conversationsStore.sending || conversationsStore.checkingContradictions || conversationsStore.generatingPrompt) return
+  await conversationsStore.generateWritingPrompt(projectId, activeScene.value.id)
   if (!conversationsStore.error) {
     await nextTick()
     scrollToBottom()
@@ -1393,6 +1657,12 @@ watch(activeScene, (scene, oldScene) => {
   if (scene && drawerOpen.value && drawerMode.value === 'ai' && scene.id !== oldScene?.id) {
     conversationsStore.reset()
     initAiConversation(scene)
+  }
+  if (scene && scene.id !== oldScene?.id) {
+    notesStore.clearNotes()
+    if (notesDrawerOpen.value) {
+      notesStore.fetchNotes(projectId, scene.id)
+    }
   }
 })
 
@@ -1425,24 +1695,6 @@ function relativeTime(dateStr) {
   touch-action: none;
 }
 
-.tags-bar {
-  border-top: 1px solid var(--wda-border);
-}
-
-.tags-bar-inner {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
-  color: var(--wda-text-muted);
-  user-select: none;
-  transition: background 0.15s;
-}
-
-.tags-bar-inner:hover {
-  background: var(--wda-surface-2);
-}
-
 .contradiction-card {
   background: var(--wda-surface);
   border: 1px solid var(--wda-border);
@@ -1466,19 +1718,7 @@ function relativeTime(dateStr) {
   border-left: 1px solid var(--wda-border);
 }
 
-.scene-board {
-  background: var(--wda-surface-2);
-}
-
 .body--dark .scene-board {
   background: var(--wda-bg);
-}
-
-.scene-card {
-  transition: background .2s ease, border-color .2s ease;
-}
-
-.scene-card.active {
-  border-left-color: var(--wda-primary);
 }
 </style>

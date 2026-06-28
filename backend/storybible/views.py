@@ -1,7 +1,9 @@
+import re
 from datetime import date, timedelta
 from collections import defaultdict
 
 import google.generativeai as genai
+from google.generativeai.types import HarmCategory, HarmBlockThreshold
 
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth import get_user_model
@@ -14,7 +16,7 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 
-from .models import Project, Character, Place, TimelineEvent, Group, Item, Lore, Scene, SceneVersion, Conversation, Message
+from .models import Project, Character, Place, TimelineEvent, Group, Item, Lore, Scene, SceneNote, SceneVersion, Conversation, Message
 from .serializers import (
     ProjectSerializer,
     CharacterSerializer,
@@ -24,6 +26,7 @@ from .serializers import (
     ItemSerializer,
     LoreSerializer,
     SceneSerializer,
+    SceneNoteSerializer,
     SceneVersionSerializer,
     ConversationSerializer,
     MessageSerializer,
@@ -306,6 +309,133 @@ class SceneViewSet(viewsets.ModelViewSet):
 
         serializer = MessageSerializer(assistant_message)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+    @action(detail=True, methods=['post'], url_path='writing-prompt')
+    def writing_prompt(self, request, project_pk=None, pk=None):
+        scene = self.get_object()
+        project = scene.project
+
+        conversation = Conversation.objects.filter(
+            project_id=project_pk,
+            scene=scene,
+        ).first()
+        if not conversation:
+            conversation = Conversation.objects.create(
+                project_id=project_pk,
+                scene=scene,
+            )
+
+        plain_content = re.sub(r'<[^>]+>', '', scene.content or '').strip()
+        has_content = bool(plain_content)
+
+        context_parts = []
+        context_parts.append('Project: ' + project.title)
+
+        characters = list(scene.characters.all())
+        places = list(scene.places.all())
+        timeline_events = list(scene.timeline_events.all())
+        groups = list(scene.groups.all())
+        items = list(scene.items.all())
+        lore = list(scene.lore.all())
+
+        has_tags = bool(characters or places or timeline_events or groups or items or lore)
+
+        if characters:
+            context_parts.append('CHARACTERS:')
+            for c in characters:
+                context_parts.append('- ' + c.name + ': ' + c.description)
+
+        if places:
+            context_parts.append('PLACES:')
+            for p in places:
+                context_parts.append('- ' + p.name + ': ' + p.description)
+
+        if timeline_events:
+            context_parts.append('TIMELINE EVENTS:')
+            for e in timeline_events:
+                context_parts.append('- ' + e.title + ': ' + e.description)
+
+        if groups:
+            context_parts.append('GROUPS:')
+            for g in groups:
+                context_parts.append('- ' + g.name + ' (' + g.group_type + '): ' + g.description)
+
+        if items:
+            context_parts.append('ITEMS:')
+            for i in items:
+                context_parts.append('- ' + i.name + ' (' + i.item_type + '): ' + i.description)
+
+        if lore:
+            context_parts.append('LORE:')
+            for l in lore:
+                context_parts.append('- ' + l.title + ' (' + l.lore_type + '): ' + l.description)
+
+        assembled_context = '\n'.join(context_parts)
+
+        content_text = plain_content if has_content else 'Scene is empty - no content yet.'
+
+        system_prompt_template = (
+            'You are a creative writing coach for a novelist.\n'
+            'Your job is to generate ONE specific, actionable writing prompt\n'
+            'that will help the writer continue this scene.\n\n'
+            'Rules:\n'
+            '- The prompt must be grounded in the Story Bible context provided.\n'
+            '- Do NOT write prose for the writer. Give them a direction, not content.\n'
+            '- Keep it to 2-4 sentences maximum.\n'
+            '- Be specific - reference actual character names, places, items from the Story Bible.\n'
+            '- Focus on: a character\'s internal reaction, a sensory detail, an unexpected action,\n'
+            '  or a piece of dialogue that would move the scene forward.\n'
+            '- If no Story Bible context exists, give a general craft-based prompt\n'
+            '  about scene structure or character motivation.\n\n'
+            'Story Bible context for this scene:\n'
+            '{assembled_context}\n\n'
+            'Current scene content (what is written so far):\n'
+            '{content_text}\n\n'
+            'Generate one writing prompt now.'
+        )
+
+        full_prompt = system_prompt_template.replace('{assembled_context}', assembled_context).replace('{content_text}', content_text)
+
+        try:
+            from .ai_service import resolve_key, GEMINI_MODEL, AIServiceNotConfigured, AIServiceError
+            key, is_free = resolve_key(request.user)
+        except AIServiceNotConfigured as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        genai.configure(api_key=key)
+        model = genai.GenerativeModel(
+            model_name=GEMINI_MODEL,
+            system_instruction='You are a creative writing coach. Generate one specific, actionable writing prompt.',
+        )
+
+        try:
+            safety_settings = {
+                HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+                HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+                HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+                HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
+            }
+            response = model.generate_content(full_prompt, safety_settings=safety_settings)
+        except Exception as e:
+            msg = str(e)
+            if 'quota' in msg.lower() or 'resource_exhausted' in msg.lower():
+                msg = 'AI service quota exceeded. Try again later or use a different API key.'
+            return Response(
+                {'error': msg},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        assistant_message = Message.objects.create(
+            conversation=conversation,
+            role='assistant',
+            content=response.text,
+            metadata={'type': 'writing_prompt'},
+        )
+
+        serializer = MessageSerializer(assistant_message)
+        return Response({'message': serializer.data}, status=status.HTTP_201_CREATED)
 
 
 class VersionPagination(PageNumberPagination):
@@ -354,6 +484,20 @@ class SceneVersionViewSet(viewsets.ReadOnlyModelViewSet):
 
         serializer = SceneSerializer(scene, context={'project_id': project_pk})
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class SceneNoteViewSet(viewsets.ModelViewSet):
+    serializer_class = SceneNoteSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return SceneNote.objects.filter(
+            scene__project__owner=self.request.user,
+            scene_id=self.kwargs['scene_pk'],
+        )
+
+    def perform_create(self, serializer):
+        serializer.save(scene_id=self.kwargs['scene_pk'])
 
 
 class ConversationViewSet(viewsets.ModelViewSet):

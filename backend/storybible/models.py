@@ -144,6 +144,28 @@ class SceneVersion(models.Model):
         ordering = ['-created_at']
 
 
+class SceneNote(models.Model):
+    NOTE_TYPES = [
+        ('general', 'General'),
+        ('todo', 'To-Do'),
+        ('research', 'Research'),
+        ('warning', 'Warning'),
+        ('idea', 'Idea'),
+    ]
+    scene = models.ForeignKey(Scene, on_delete=models.CASCADE, related_name='notes')
+    content = models.TextField()
+    note_type = models.CharField(max_length=20, choices=NOTE_TYPES, default='general')
+    resolved = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f'{self.note_type} note on {self.scene}'
+
+    class Meta:
+        ordering = ['-created_at']
+
+
 class UserProfile(models.Model):
     # NOTE: API key stored as plaintext in Postgres for MVP.
     # Before any multi-user cloud deployment, add encryption via

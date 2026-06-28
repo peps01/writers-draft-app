@@ -71,7 +71,7 @@
                   size="4px"
                 />
                 <div class="wda-project-card__meta">
-                  <span>Last Edited: {{ lastEdited(project.updated_at || project.created_at) }}</span>
+                  <span>Created: {{ lastEdited(project.created_at) }}</span>
                 </div>
               </div>
             </div>
@@ -521,14 +521,28 @@ function lastEdited(dateStr) {
   const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000)
   if (seconds < 60) return 'just now'
   const minutes = Math.floor(seconds / 60)
+  if (minutes === 1) return '1 minute ago'
   if (minutes < 60) return `${minutes}m ago`
   const hours = Math.floor(minutes / 60)
+  if (hours === 1) return '1 hour ago'
   if (hours < 24) return `${hours}h ago`
   const days = Math.floor(hours / 24)
-  if (days < 30) return `${days}d ago`
+  const remainingHours = hours % 24
+  if (days < 7) {
+    if (remainingHours === 0) return days === 1 ? '1 day ago' : `${days} days ago`
+    const dayLabel = days === 1 ? '1 day' : `${days} days`
+    return `${dayLabel} and ${remainingHours}h ago`
+  }
+  const weeks = Math.floor(days / 7)
+  const remainingDays = days % 7
+  if (weeks < 4) {
+    if (remainingDays === 0) return weeks === 1 ? '1 week ago' : `${weeks} weeks ago`
+    return `${weeks} week${weeks > 1 ? 's' : ''} and ${remainingDays}d ago`
+  }
   const months = Math.floor(days / 30)
-  if (months < 12) return `${months}mo ago`
-  return `${Math.floor(days / 365)}y ago`
+  if (months < 12) return months === 1 ? '1 month ago' : `${months}mo ago`
+  const years = Math.floor(days / 365)
+  return years === 1 ? '1 year ago' : `${years}y ago`
 }
 
 function relativeTimeShort(dateStr) {
