@@ -3,8 +3,9 @@
     :model-value="modelValue"
     @update:model-value="$emit('update:modelValue', $event)"
     @before-hide="resetForm"
+    :maximized="maximized"
   >
-    <q-card class="wda-card" style="min-width: 400px">
+    <q-card class="wda-card" :style="{ minWidth: maximized ? '100%' : '400px' }">
       <q-card-section>
         <div class="text-h6" style="font-family: var(--wda-font-heading)">
           {{ entity ? 'Edit' : 'Add' }} {{ entityLabel }}
@@ -50,6 +51,7 @@ const props = defineProps({
   errorText: { type: String, default: '' },
   entityLabel: { type: String, default: 'Entity' },
   nameLabel: { type: String, default: 'Name' },
+  maximized: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['update:modelValue', 'save'])

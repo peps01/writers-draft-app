@@ -4,13 +4,15 @@
     side="left"
     :width="220"
     bordered
-    :model-value="true"
+    :model-value="modelValue"
+    @update:model-value="$emit('update:modelValue', $event)"
     class="wda-sidebar"
   >
     <div class="wda-sidebar-inner">
       <div class="wda-sidebar-header">
         <div class="wda-logo-badge">{{ authStore.user?.username?.charAt(0)?.toUpperCase() || '?' }}</div>
         <span class="wda-sidebar-header-label">{{ authStore.user?.username || 'User' }}</span>
+        <q-btn flat dense round icon="close" size="sm" class="wda-sidebar-close-btn" @click="$emit('update:modelValue', false)" />
       </div>
 
       <div class="wda-sidebar-nav">
@@ -39,6 +41,12 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+
+defineProps({
+  modelValue: { type: Boolean, default: true },
+})
+
+defineEmits(['update:modelValue'])
 import { useAuthStore } from '@/stores/auth'
 import { useProjectsStore } from '@/stores/projects'
 

@@ -1,25 +1,28 @@
 <template>
   <q-page>
     <div class="wda-page wda-page--full">
-      <q-tabs v-model="tab" @update:model-value="onTabChange">
-        <q-tab name="characters" icon="person" :label="`Characters (${charactersStore.characters.length})`" />
-        <q-tab name="places" icon="location_on" :label="`Places (${placesStore.places.length})`" />
-        <q-tab name="timeline" icon="timeline" :label="`Timeline (${timelineEventsStore.timelineEvents.length})`" />
-        <q-tab name="groups" icon="groups" :label="`Groups (${groupsStore.groups.length})`" />
-        <q-tab name="items" icon="inventory_2" :label="`Items (${itemsStore.items.length})`" />
-        <q-tab name="lore" icon="auto_stories" :label="`Lore (${loreStore.lore.length})`" />
+      <q-tabs v-model="tab" @update:model-value="onTabChange" align="justify" breakpoint="0">
+        <q-tab name="characters" icon="person" :label="$q.screen.gt.xs ? `Characters (${charactersStore.characters.length})` : ''" />
+        <q-tab name="places" icon="location_on" :label="$q.screen.gt.xs ? `Places (${placesStore.places.length})` : ''" />
+        <q-tab name="timeline" icon="timeline" :label="$q.screen.gt.xs ? `Timeline (${timelineEventsStore.timelineEvents.length})` : ''" />
+        <q-tab name="groups" icon="groups" :label="$q.screen.gt.xs ? `Groups (${groupsStore.groups.length})` : ''" />
+        <q-tab name="items" icon="inventory_2" :label="$q.screen.gt.xs ? `Items (${itemsStore.items.length})` : ''" />
+        <q-tab name="lore" icon="auto_stories" :label="$q.screen.gt.xs ? `Lore (${loreStore.lore.length})` : ''" />
       </q-tabs>
 
       <q-tab-panels v-model="tab" animated>
         <!-- Characters -->
         <q-tab-panel name="characters">
           <div class="tab-header">
-            <q-input v-model="searchChar" placeholder="Search characters..." dense outlined clearable class="tab-search">
-              <template #prepend><q-icon name="search" /></template>
-            </q-input>
+            <div class="tab-search-wrapper">
+              <q-btn v-if="$q.screen.lt.md && !searchOpen" flat round dense icon="search" @click="searchOpen = true" />
+              <q-input v-else v-model="searchChar" placeholder="Search characters..." dense outlined clearable class="tab-search">
+                <template #prepend><q-icon name="search" /></template>
+              </q-input>
+            </div>
             <div class="tab-actions">
               <q-btn-toggle v-model="viewModeChar" flat dense :options="[{ value: 'grid', icon: 'grid_view' }, { value: 'list', icon: 'list' }]" @update:model-value="persistViewMode('characters', $event)" />
-              <q-btn unelevated dense icon="add" label="Add Character" color="primary" no-caps @click="openCreateEntity('characters')" style="font-family: var(--wda-font-ui); font-size: 0.85rem" />
+              <q-btn unelevated dense icon="add" :label="$q.screen.lt.md ? 'Add' : 'Add Character'" color="primary" no-caps @click="openCreateEntity('characters')" style="font-family: var(--wda-font-ui); font-size: 0.85rem" />
             </div>
           </div>
 
@@ -74,12 +77,15 @@
         <!-- Places -->
         <q-tab-panel name="places">
           <div class="tab-header">
-            <q-input v-model="searchPlace" placeholder="Search places..." dense outlined clearable class="tab-search">
-              <template #prepend><q-icon name="search" /></template>
-            </q-input>
+            <div class="tab-search-wrapper">
+              <q-btn v-if="$q.screen.lt.md && !searchOpen" flat round dense icon="search" @click="searchOpen = true" />
+              <q-input v-else v-model="searchPlace" placeholder="Search places..." dense outlined clearable class="tab-search">
+                <template #prepend><q-icon name="search" /></template>
+              </q-input>
+            </div>
             <div class="tab-actions">
               <q-btn-toggle v-model="viewModePlace" flat dense :options="[{ value: 'grid', icon: 'grid_view' }, { value: 'list', icon: 'list' }]" @update:model-value="persistViewMode('places', $event)" />
-              <q-btn unelevated dense icon="add" label="Add Place" color="primary" no-caps @click="openCreateEntity('places')" style="font-family: var(--wda-font-ui); font-size: 0.85rem" />
+              <q-btn unelevated dense icon="add" :label="$q.screen.lt.md ? 'Add' : 'Add Place'" color="primary" no-caps @click="openCreateEntity('places')" style="font-family: var(--wda-font-ui); font-size: 0.85rem" />
             </div>
           </div>
 
@@ -134,11 +140,14 @@
         <!-- Timeline -->
         <q-tab-panel name="timeline">
           <div class="tab-header">
-            <q-input v-model="searchTimeline" placeholder="Search timeline events..." dense outlined clearable class="tab-search">
-              <template #prepend><q-icon name="search" /></template>
-            </q-input>
+            <div class="tab-search-wrapper">
+              <q-btn v-if="$q.screen.lt.md && !searchOpen" flat round dense icon="search" @click="searchOpen = true" />
+              <q-input v-else v-model="searchTimeline" placeholder="Search timeline events..." dense outlined clearable class="tab-search">
+                <template #prepend><q-icon name="search" /></template>
+              </q-input>
+            </div>
             <div class="tab-actions">
-              <q-btn unelevated dense icon="add" label="Add Event" color="primary" no-caps @click="openCreateTimelineEvent" style="font-family: var(--wda-font-ui); font-size: 0.85rem" />
+              <q-btn unelevated dense icon="add" :label="$q.screen.lt.md ? 'Add' : 'Add Event'" color="primary" no-caps @click="openCreateTimelineEvent" style="font-family: var(--wda-font-ui); font-size: 0.85rem" />
             </div>
           </div>
 
@@ -190,12 +199,15 @@
         <!-- Groups -->
         <q-tab-panel name="groups">
           <div class="tab-header">
-            <q-input v-model="searchGroup" placeholder="Search groups..." dense outlined clearable class="tab-search">
-              <template #prepend><q-icon name="search" /></template>
-            </q-input>
+            <div class="tab-search-wrapper">
+              <q-btn v-if="$q.screen.lt.md && !searchOpen" flat round dense icon="search" @click="searchOpen = true" />
+              <q-input v-else v-model="searchGroup" placeholder="Search groups..." dense outlined clearable class="tab-search">
+                <template #prepend><q-icon name="search" /></template>
+              </q-input>
+            </div>
             <div class="tab-actions">
               <q-btn-toggle v-model="viewModeGroup" flat dense :options="[{ value: 'grid', icon: 'grid_view' }, { value: 'list', icon: 'list' }]" @update:model-value="persistViewMode('groups', $event)" />
-              <q-btn unelevated dense icon="add" label="Add Group" color="primary" no-caps @click="openEntityTypeForm('groups')" style="font-family: var(--wda-font-ui); font-size: 0.85rem" />
+              <q-btn unelevated dense icon="add" :label="$q.screen.lt.md ? 'Add' : 'Add Group'" color="primary" no-caps @click="openEntityTypeForm('groups')" style="font-family: var(--wda-font-ui); font-size: 0.85rem" />
             </div>
           </div>
 
@@ -251,12 +263,15 @@
         <!-- Items -->
         <q-tab-panel name="items">
           <div class="tab-header">
-            <q-input v-model="searchItem" placeholder="Search items..." dense outlined clearable class="tab-search">
-              <template #prepend><q-icon name="search" /></template>
-            </q-input>
+            <div class="tab-search-wrapper">
+              <q-btn v-if="$q.screen.lt.md && !searchOpen" flat round dense icon="search" @click="searchOpen = true" />
+              <q-input v-else v-model="searchItem" placeholder="Search items..." dense outlined clearable class="tab-search">
+                <template #prepend><q-icon name="search" /></template>
+              </q-input>
+            </div>
             <div class="tab-actions">
               <q-btn-toggle v-model="viewModeItem" flat dense :options="[{ value: 'grid', icon: 'grid_view' }, { value: 'list', icon: 'list' }]" @update:model-value="persistViewMode('items', $event)" />
-              <q-btn unelevated dense icon="add" label="Add Item" color="primary" no-caps @click="openEntityTypeForm('items')" style="font-family: var(--wda-font-ui); font-size: 0.85rem" />
+              <q-btn unelevated dense icon="add" :label="$q.screen.lt.md ? 'Add' : 'Add Item'" color="primary" no-caps @click="openEntityTypeForm('items')" style="font-family: var(--wda-font-ui); font-size: 0.85rem" />
             </div>
           </div>
 
@@ -312,12 +327,15 @@
         <!-- Lore -->
         <q-tab-panel name="lore">
           <div class="tab-header">
-            <q-input v-model="searchLore" placeholder="Search lore..." dense outlined clearable class="tab-search">
-              <template #prepend><q-icon name="search" /></template>
-            </q-input>
+            <div class="tab-search-wrapper">
+              <q-btn v-if="$q.screen.lt.md && !searchOpen" flat round dense icon="search" @click="searchOpen = true" />
+              <q-input v-else v-model="searchLore" placeholder="Search lore..." dense outlined clearable class="tab-search">
+                <template #prepend><q-icon name="search" /></template>
+              </q-input>
+            </div>
             <div class="tab-actions">
               <q-btn-toggle v-model="viewModeLore" flat dense :options="[{ value: 'grid', icon: 'grid_view' }, { value: 'list', icon: 'list' }]" @update:model-value="persistViewMode('lore', $event)" />
-              <q-btn unelevated dense icon="add" label="Add Lore" color="primary" no-caps @click="openEntityTypeForm('lore')" style="font-family: var(--wda-font-ui); font-size: 0.85rem" />
+              <q-btn unelevated dense icon="add" :label="$q.screen.lt.md ? 'Add' : 'Add Lore'" color="primary" no-caps @click="openEntityTypeForm('lore')" style="font-family: var(--wda-font-ui); font-size: 0.85rem" />
             </div>
           </div>
 
@@ -372,10 +390,10 @@
       </q-tab-panels>
 
       <!-- Entity Form Dialog (Characters / Places) -->
-      <EntityFormDialog v-model="showEntityDialog" :entity="editingEntity" :entity-label="activeEntityLabel" name-label="Name" :saving="entitySaving" :error-text="entityError" @save="onEntitySave" />
+      <EntityFormDialog v-model="showEntityDialog" :entity="editingEntity" :entity-label="activeEntityLabel" name-label="Name" :saving="entitySaving" :error-text="entityError" :maximized="$q.screen.lt.md" @save="onEntitySave" />
 
       <!-- Entity Type Dialog (Groups / Items / Lore) -->
-      <q-dialog v-model="showEntityTypeDialog" @before-hide="resetEntityTypeForm">
+      <q-dialog v-model="showEntityTypeDialog" @before-hide="resetEntityTypeForm" :maximized="$q.screen.lt.md">
         <q-card class="wda-card" style="min-width: 400px">
           <q-card-section>
             <div class="text-h6" style="font-family: var(--wda-font-heading)">{{ editingEntityType ? 'Edit' : 'Add' }} {{ entityTypeLabel }}</div>
@@ -394,7 +412,7 @@
       </q-dialog>
 
       <!-- Timeline Event Dialog -->
-      <q-dialog v-model="showTimelineDialog" @before-hide="resetTimelineForm">
+      <q-dialog v-model="showTimelineDialog" @before-hide="resetTimelineForm" :maximized="$q.screen.lt.md">
         <q-card class="wda-card" style="min-width: 400px">
           <q-card-section>
             <div class="text-h6" style="font-family: var(--wda-font-heading)">{{ editingTimelineEvent ? 'Edit' : 'Add' }} Timeline Event</div>
@@ -427,6 +445,11 @@
           </q-card-actions>
         </q-card>
       </q-dialog>
+
+      <!-- Mobile FAB for add entity -->
+      <q-page-sticky position="bottom-right" :offset="[18, 72]" v-if="$q.screen.lt.md">
+        <q-btn fab icon="add" color="primary" @click="handleAddEntity" />
+      </q-page-sticky>
     </div>
   </q-page>
 </template>
@@ -463,6 +486,7 @@ const searchTimeline = ref('')
 const searchGroup = ref('')
 const searchItem = ref('')
 const searchLore = ref('')
+const searchOpen = ref(false)
 
 // Filtered computed
 const filteredCharacters = computed(() => {
@@ -504,6 +528,7 @@ watch(tab, () => {
   searchGroup.value = ''
   searchItem.value = ''
   searchLore.value = ''
+  searchOpen.value = false
 })
 
 // View modes with localStorage persistence
@@ -532,6 +557,17 @@ onMounted(() => {
   tabsFetched.value.characters = true
   charactersStore.fetchCharacters(projectId)
 })
+
+function handleAddEntity() {
+  switch (tab.value) {
+    case 'characters': openCreateEntity('characters'); break
+    case 'places': openCreateEntity('places'); break
+    case 'timeline': openCreateTimelineEvent(); break
+    case 'groups': openEntityTypeForm('groups'); break
+    case 'items': openEntityTypeForm('items'); break
+    case 'lore': openEntityTypeForm('lore'); break
+  }
+}
 
 // ---- Entity Dialog (Characters / Places) ----
 const entityType = ref('characters')
@@ -843,5 +879,10 @@ async function submitDelete() {
 <style scoped>
 .drag-handle {
   touch-action: none;
+}
+
+.tab-search-wrapper {
+  flex: 1;
+  min-width: 160px;
 }
 </style>

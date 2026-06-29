@@ -8,7 +8,7 @@
         </span>
       </div>
 
-      <div class="wda-navbar-center">
+      <div class="wda-navbar-center" v-if="$q.screen.gt.xs">
         <div class="search-bar-wrapper" ref="searchBarWrapperRef">
           <q-input
             v-model="searchQuery"
@@ -36,11 +36,13 @@
       </div>
 
       <div class="wda-navbar-right">
+        <q-btn v-if="$q.screen.xs" flat dense round icon="search" size="sm" class="wda-navbar-icon-btn" @click="openFullResults" />
+
         <button class="wda-navbar-dark-btn" @click="$q.dark.toggle()">
           <span class="material-icons">{{ $q.dark.isActive ? 'light_mode' : 'dark_mode' }}</span>
         </button>
 
-        <button v-if="isProjectRoute" class="wda-navbar-icon-btn" @click="openExportDialog?.()">
+        <button v-if="isProjectRoute && $q.screen.gt.xs" class="wda-navbar-icon-btn" @click="openExportDialog?.()">
           <span class="material-icons">file_download</span>
         </button>
 
@@ -48,7 +50,7 @@
           <span class="material-icons">add</span>
         </button>
 
-        <button class="wda-navbar-icon-btn" @click="$router.push('/settings')">
+        <button v-if="$q.screen.gt.xs" class="wda-navbar-icon-btn" @click="$router.push('/settings')">
           <span class="material-icons">settings</span>
         </button>
 
@@ -378,5 +380,19 @@ async function handleLogout() {
   height: 20px;
   width: auto;
   vertical-align: middle;
+}
+
+@media (max-width: 599px) {
+  .wda-navbar.q-header {
+    height: 56px;
+    min-height: 56px;
+    padding: 0 16px;
+  }
+  .wda-navbar__search {
+    display: none;
+  }
+  .wda-wordmark {
+    font-size: 18px;
+  }
 }
 </style>

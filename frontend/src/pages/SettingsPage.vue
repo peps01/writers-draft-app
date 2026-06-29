@@ -587,6 +587,26 @@ async function saveGoal() {
   overflow-y: auto;
 }
 
+@media (max-width: 599px) {
+  .settings-card {
+    flex-direction: column;
+  }
+
+  .settings-card-divider {
+    width: 100%;
+    height: 1px;
+  }
+
+  .settings-card-left,
+  .settings-card-right {
+    padding: 16px;
+  }
+
+  .settings-card-right {
+    width: 100%;
+  }
+}
+
 .settings-card-divider {
   width: 1px;
   flex-shrink: 0;

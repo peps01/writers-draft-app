@@ -209,7 +209,7 @@ function buildChart() {
   })
 
   const primaryColor =
-    getComputedStyle(document.documentElement).getPropertyValue('--wda-primary').trim() || '#F4A825'
+    getComputedStyle(document.body).getPropertyValue('--wda-primary').trim() || '#F4A825'
 
   chartInstance = new Chart(chartCanvas.value, {
     type: 'bar',

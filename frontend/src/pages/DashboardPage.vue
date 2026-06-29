@@ -90,7 +90,7 @@
           </div>
         </div>
       </div>
-      <div class="wda-dashboard-top-row__right">
+      <div class="wda-dashboard-top-row__right" v-if="$q.screen.gt.xs">
         <!-- Panel A: AI / Version Tabs -->
         <div class="wda-right-tab-panel">
           <div class="wda-right-tab-panel__tabs">
@@ -189,7 +189,7 @@
 
       <div class="wda-workspace-row">
         <!-- Scenes Panel -->
-        <div class="wda-scenes-panel">
+        <div class="wda-scenes-panel" v-if="$q.screen.gt.xs">
           <div class="wda-scenes-panel__header workspace-section-header">Scenes</div>
 
           <div class="wda-scenes-panel__list">
@@ -250,7 +250,19 @@
           </template>
 
           <template v-else>
-            <div class="wda-scene-preview__title">{{ activeScene.title || 'Untitled Scene' }}</div>
+            <div class="wda-scene-preview__nav" v-if="$q.screen.xs">
+              <button class="wda-scene-nav-btn" :disabled="currentSceneIndex <= 0" @click.stop="prevScene">
+                <span class="material-icons">chevron_left</span>
+              </button>
+              <div class="wda-scene-preview__nav-info">
+                <div class="wda-scene-preview__nav-title ellipsis">{{ activeScene.title || 'Untitled Scene' }}</div>
+                <div class="wda-scene-preview__nav-count">{{ currentSceneIndex + 1 }} / {{ scenesStore.scenes.length }}</div>
+              </div>
+              <button class="wda-scene-nav-btn" :disabled="currentSceneIndex >= scenesStore.scenes.length - 1" @click.stop="nextScene">
+                <span class="material-icons">chevron_right</span>
+              </button>
+            </div>
+            <div class="wda-scene-preview__title" :class="{ 'with-nav': $q.screen.xs }">{{ activeScene.title || 'Untitled Scene' }}</div>
             <div class="wda-scene-preview__edited">Last Edited: {{ lastEdited(activeScene.updated_at || activeScene.created_at) }}</div>
 
             <div v-if="!activeScene.content" class="wda-scene-preview__empty" style="height: auto; padding: 20px 0">
@@ -266,7 +278,7 @@
         </div>
 
         <!-- Right Column -->
-        <div class="wda-right-column">
+        <div class="wda-right-column" v-if="$q.screen.gt.xs">
           <!-- Panel A: Story Bible Tags -->
           <div class="wda-tags-panel">
             <div class="wda-tags-panel__title workspace-section-header">Story Bible Tags</div>
@@ -313,6 +325,8 @@
       <p class="wda-dashboard-empty__title">Your story starts here</p>
       <q-btn unelevated color="primary" label="Create your first project" icon="add" to="/projects/new" no-caps />
     </div>
+
+    <!-- Mobile FAB for new project — moved to navbar -->
 
     <!-- Dialogs -->
     <q-dialog v-model="showRenameDialog">
@@ -465,6 +479,21 @@ const activeScene = computed(() => {
   if (!selectedSceneId.value) return null
   return scenesStore.scenes.find((s) => s.id === selectedSceneId.value) || null
 })
+
+const currentSceneIndex = computed(() => {
+  if (!selectedSceneId.value) return -1
+  return scenesStore.scenes.findIndex((s) => s.id === selectedSceneId.value)
+})
+
+function prevScene() {
+  const idx = currentSceneIndex.value
+  if (idx > 0) selectScene(scenesStore.scenes[idx - 1].id)
+}
+
+function nextScene() {
+  const idx = currentSceneIndex.value
+  if (idx < scenesStore.scenes.length - 1) selectScene(scenesStore.scenes[idx + 1].id)
+}
 
 const tagChips = computed(() => {
   if (!activeScene.value) return []
@@ -626,6 +655,7 @@ function buildChart() {
     chartInstance.destroy()
     chartInstance = null
   }
+  const primaryColor = getComputedStyle(document.body).getPropertyValue('--wda-primary').trim() || '#F4A825'
   const data = statisticsStore.stats.daily_words.slice(-7)
   const labels = data.map((d) => {
     const date = new Date(d.date + 'T00:00:00Z')
@@ -638,7 +668,7 @@ function buildChart() {
       labels,
       datasets: [{
         data: values,
-        backgroundColor: values.map((v) => (v > 0 ? '#1B2A4A' : '#E8E2D9')),
+        backgroundColor: values.map((v) => (v > 0 ? primaryColor : '#E8E2D9')),
         borderWidth: 0,
         borderRadius: 2,
         barThickness: 12,
@@ -734,6 +764,62 @@ async function submitDelete() {
 </script>
 
 <style scoped>
+.wda-scene-nav-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--wda-border);
+  background: var(--wda-surface);
+  color: var(--wda-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background .15s, border-color .15s;
+}
+
+.wda-scene-nav-btn:hover:not(:disabled) {
+  background: var(--wda-surface-2);
+  border-color: var(--wda-primary);
+}
+
+.wda-scene-nav-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.wda-scene-nav-btn .material-icons {
+  font-size: 20px;
+}
+
+.wda-scene-preview__nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0 12px;
+  border-bottom: 1px solid var(--wda-border);
+  margin-bottom: 12px;
+}
+
+.wda-scene-preview__nav-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.wda-scene-preview__nav-title {
+  font-family: var(--wda-font-ui);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--wda-text);
+}
+
+.wda-scene-preview__nav-count {
+  font-size: 0.72rem;
+  color: var(--wda-text-muted);
+  margin-top: 1px;
+}
+
 .chat-message-content {
   line-height: 1.6;
   p { margin: 0 0 0.5em; &:last-child { margin-bottom: 0; } }

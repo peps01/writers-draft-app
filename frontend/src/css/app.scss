@@ -1,3 +1,8 @@
+// ===== BREAKPOINTS =====
+$bp-mobile: 599px;
+$bp-tablet: 1023px;
+$bp-desktop: 1024px;
+
 // ===== LIGHT MODE =====
 :root {
   --wda-bg: #EDE8DC;
@@ -5,6 +10,8 @@
   --wda-surface-2: #F5F3EF;
   --wda-primary: #1B2A4A;
   --wda-secondary: #C9A84C;
+  --wda-positive: #2D6A4F;
+  --wda-negative: #C75D3A;
   --wda-text: #1B2A4A;
   --wda-text-body: #2A2720;
   --wda-text-secondary: #4A4440;
@@ -29,6 +36,8 @@ body.body--dark {
   --wda-surface-2: #35383F;
   --wda-primary: #F4A825;
   --wda-secondary: #F4A825;
+  --wda-positive: #2D6A4F;
+  --wda-negative: #C75D3A;
   --wda-action: #64B5F6;
   --wda-text: #F5F5F5;
   --wda-text-body: #E0E0E0;
@@ -253,7 +262,7 @@ h3 {
   font-family: 'Playfair Display', serif;
   font-weight: 700;
   font-size: 22px;
-  color: #1B2A4A;
+  color: var(--wda-text);
   margin-bottom: 12px;
 }
 
@@ -1176,11 +1185,12 @@ h3 {
   border-radius: 10px;
   font-weight: 500;
   margin-left: 8px;
+  white-space: nowrap;
 }
-.save-status-badge.ready { background: var(--wda-surface-2); color: var(--wda-text-muted); }
-.save-status-badge.saving { background: rgba(74, 144, 217, 0.15); color: #4A90D9; }
-.save-status-badge.saved { background: rgba(45, 106, 79, 0.15); color: #2D6A4F; }
-.save-status-badge.error { background: rgba(199, 93, 58, 0.15); color: #C75D3A; }
+.save-status-badge.status-ready { background: var(--wda-surface-2); color: var(--wda-text-muted); }
+.save-status-badge.status-saving { background: var(--wda-action); color: white; }
+.save-status-badge.status-saved { background: var(--wda-positive, #2D6A4F); color: white; }
+.save-status-badge.status-error { background: var(--wda-negative, #C75D3A); color: white; }
 
 // ===== STATISTICS =====
 .stat-card {
@@ -1436,6 +1446,7 @@ h3 {
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 .wda-navbar-avatar {
@@ -1532,10 +1543,19 @@ h3 {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 0 16px;
+  padding: 0 8px 0 16px;
   height: 48px;
   margin-bottom: 20px;
   flex-shrink: 0;
+}
+
+.wda-sidebar-close-btn {
+  margin-left: auto;
+  color: var(--wda-text-muted);
+}
+
+.wda-sidebar-close-btn:hover {
+  color: var(--wda-text);
 }
 
 .wda-logo-badge {
@@ -1613,6 +1633,45 @@ h3 {
   &.disabled {
     opacity: 0.4;
     pointer-events: none;
+  }
+}
+
+// ===== Sidebar Toggle Button =====
+.wda-sidebar-toggle {
+  position: fixed;
+  top: 72px;
+  left: 0;
+  width: 28px;
+  height: 48px;
+  border: 1px solid var(--wda-border);
+  border-left: none;
+  border-radius: 0 8px 8px 0;
+  background: var(--wda-surface);
+  color: var(--wda-text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 1999;
+  transition: color .15s, background .15s;
+}
+
+.wda-sidebar-toggle:hover {
+  color: var(--wda-primary);
+  background: var(--wda-surface-2);
+}
+
+.wda-sidebar-toggle .material-icons {
+  font-size: 18px;
+}
+
+@media (max-width: $bp-mobile) {
+  .wda-sidebar.q-drawer {
+    display: none !important;
+  }
+
+  .wda-sidebar-toggle {
+    display: none !important;
   }
 }
 
@@ -1762,7 +1821,7 @@ body.body--dark .chat-message-content {
 // ===== SCROLLBAR GLOBAL STYLES =====
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255,255,255,.1) transparent;
+  scrollbar-color: var(--wda-border-strong) transparent;
 }
 
 *::-webkit-scrollbar {
@@ -1775,21 +1834,13 @@ body.body--dark .chat-message-content {
 }
 
 *::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,.1);
+  background: var(--wda-border-strong);
   border-radius: 3px;
   transition: background .2s ease;
 }
 
 *::-webkit-scrollbar-thumb:hover {
-  background: rgba(255,255,255,.2);
-}
-
-body.body--dark *::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,.12);
-}
-
-body.body--dark *::-webkit-scrollbar-thumb:hover {
-  background: rgba(255,255,255,.2);
+  background: var(--wda-text-muted);
 }
 
 // ── Story Bible Page ──────────────────────────────
@@ -2481,6 +2532,23 @@ body.body--dark .entity-type-badge {
     margin-bottom: 6px;
   }
 
+  .tag-section-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    user-select: none;
+    padding: 4px 0;
+  }
+
+  .tag-section-toggle:hover {
+    color: var(--wda-primary);
+  }
+
+  .tag-section-body {
+    padding-top: 4px;
+  }
+
   .q-field__native {
     max-height: 120px;
     overflow-y: auto;
@@ -2542,5 +2610,316 @@ body.body--dark .entity-type-badge {
     background: rgba(244, 168, 37, 0.12);
     color: var(--wda-text);
     font-weight: 500;
+  }
+}
+
+// ===== RESPONSIVE TYPOGRAPHY =====
+.wda-page-title {
+  font-size: clamp(22px, 4vw, 30px);
+  font-family: var(--wda-font-heading);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.wda-page-subtitle {
+  font-size: 14px;
+  color: var(--wda-text-muted);
+  letter-spacing: 0.01em;
+}
+
+.section-title {
+  font-size: clamp(18px, 3vw, 22px);
+  font-family: var(--wda-font-heading);
+  font-weight: 600;
+}
+
+// ===== BUTTON TOUCH TARGETS =====
+.q-btn {
+  min-height: 36px;
+}
+
+@media (max-width: $bp-mobile) {
+  .q-btn--round,
+  .q-btn[round] {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+// ===== FORM INPUT IMPROVEMENTS =====
+.q-field--outlined .q-field__control {
+  border-radius: var(--wda-radius-sm) !important;
+  border-color: var(--wda-border-strong);
+}
+
+.q-field--outlined .q-field__control:hover {
+  border-color: var(--wda-primary);
+}
+
+body.body--dark .q-field--outlined .q-field__control {
+  background: var(--wda-surface-2);
+  border-color: var(--wda-border-strong);
+}
+
+@media (max-width: $bp-mobile) {
+  .q-field--outlined .q-field__native,
+  .q-field--outlined .q-field__input {
+    min-height: 48px;
+  }
+}
+
+// ===== DIALOG BOTTOM SHEET FOR MOBILE =====
+@media (max-width: $bp-mobile) {
+  .q-dialog__inner--minimized > div {
+    border-radius: 16px 16px 0 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 0 !important;
+    position: fixed !important;
+    bottom: 0 !important;
+  }
+}
+
+// ===== EMPTY STATE =====
+.wda-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  text-align: center;
+  color: var(--wda-text-muted);
+  gap: 12px;
+
+  .q-icon { opacity: 0.4; }
+  h3 { font-family: var(--wda-font-heading); color: var(--wda-text-secondary); }
+  p  { font-size: 14px; max-width: 300px; }
+}
+
+// ===== BOTTOM NAV (AppBottomNav) =====
+.app-bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  transition: transform 0.3s ease;
+
+  &--hidden {
+    transform: translateY(100%);
+  }
+
+  &__toggle {
+    width: 100%;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--wda-surface);
+    border: none;
+    border-top: 1px solid var(--wda-border);
+    cursor: pointer;
+    color: var(--wda-text-muted);
+
+    &:hover {
+      background: var(--wda-surface-2);
+    }
+  }
+
+  &__toggle-icon {
+    font-size: 20px;
+  }
+
+  &__body {
+    height: 56px;
+    display: flex;
+    align-items: center;
+    background: var(--wda-surface);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  &__item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    text-decoration: none;
+    color: var(--wda-text-muted);
+    min-height: 44px;
+
+    &--active {
+      color: var(--wda-primary);
+    }
+  }
+
+  &__label {
+    font-size: 10px;
+    font-family: var(--wda-font-ui);
+    line-height: 1;
+  }
+
+  // Floating reveal button when nav is hidden
+  &__reveal {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 48px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--wda-surface);
+    border: 1px solid var(--wda-border);
+    border-bottom: none;
+    border-radius: 12px 12px 0 0;
+    cursor: pointer;
+    z-index: 999;
+    color: var(--wda-text-muted);
+
+    &:hover {
+      background: var(--wda-surface-2);
+    }
+  }
+}
+
+// Padding override when bottom nav is hidden
+.with-bottom-nav-hidden {
+  padding-bottom: 0;
+}
+
+// ===== DARK MODE Q-TABS OVERRIDES =====
+body.body--dark .q-tabs__indicator {
+  background: var(--wda-primary) !important;
+}
+
+body.body--dark .q-tab--active {
+  color: var(--wda-primary) !important;
+}
+
+// ===== DARK MODE LINK STYLES =====
+body.body--dark a,
+body.body--dark .router-link-active {
+  color: var(--wda-action);
+}
+
+// ===== ACTIVE NAV ITEM DARK MODE =====
+body.body--dark .wda-nav-item--active {
+  background: rgba(244, 168, 37, 0.12);
+  border-left-color: var(--wda-primary);
+  color: var(--wda-primary);
+}
+
+// ===== RESPONSIVE LAYOUT =====
+// Page padding responsive
+.wda-page {
+  padding: 32px 40px;
+  @media (max-width: $bp-mobile) {
+    padding: 16px;
+  }
+}
+
+// Auth page mobile
+@media (max-width: $bp-mobile) {
+  .auth-form-card {
+    width: 100%;
+    max-width: 100%;
+    border-radius: 0;
+    padding: 32px 24px;
+    box-shadow: none;
+  }
+  .auth-page {
+    align-items: center;
+    padding: 40px;
+  }
+}
+
+// Dashboard project grid - replaced by strip on desktop but add grid fallback
+.project-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  @media (max-width: $bp-mobile) {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+}
+
+// Story Bible entity grid
+.entity-grid {
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  @media (max-width: $bp-mobile) {
+    grid-template-columns: 1fr;
+  }
+}
+
+// Statistics page
+.stat-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  @media (max-width: $bp-mobile) {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+}
+
+.chart-container {
+  position: relative;
+  height: 280px;
+  @media (max-width: $bp-mobile) {
+    height: 200px;
+  }
+}
+
+// Write page - scene board FAB
+.scene-board-fab {
+  position: fixed;
+  bottom: 72px;
+  left: 16px;
+  z-index: 100;
+}
+
+// ProseMirror mobile
+@media (max-width: $bp-mobile) {
+  .ProseMirror {
+    padding: 16px !important;
+    font-size: 1rem !important;
+    line-height: 1.7 !important;
+  }
+}
+
+// Settings page mobile
+@media (max-width: $bp-mobile) {
+  .settings-card {
+    flex-direction: column;
+  }
+  .settings-card-right {
+    width: 100%;
+  }
+  .settings-page {
+    padding: 16px !important;
+  }
+}
+
+.with-bottom-nav {
+  padding-bottom: calc(56px + env(safe-area-inset-bottom));
+
+  .q-page {
+    min-height: calc(100vh - 56px);
+  }
+
+  .create-project-page,
+  .settings-page {
+    min-height: calc(100vh - 56px);
+  }
+}
+
+// Scene extreme cards mobile
+.scene-extreme-cards {
+  @media (max-width: $bp-mobile) {
+    grid-template-columns: 1fr;
   }
 }

@@ -1,7 +1,7 @@
 <template>
   <q-page class="write-page">
-    <!-- Left: Scene Board -->
-    <div v-if="!fullscreen" class="scene-board">
+    <!-- Left: Scene Board (Desktop) -->
+    <div v-if="!fullscreen && $q.screen.gt.sm" class="scene-board">
       <div class="scene-board-header">Scenes</div>
 
       <div style="padding: 12px 16px">
@@ -92,6 +92,78 @@
       </div>
     </div>
 
+    <!-- Mobile scene board trigger -->
+    <q-btn
+      v-if="$q.screen.lt.md && !fullscreen"
+      fab-mini
+      icon="list"
+      color="primary"
+      class="scene-board-fab"
+      @click="sceneBoardOpen = true"
+    />
+
+    <!-- Mobile scene board as bottom sheet -->
+    <q-dialog
+      v-model="sceneBoardOpen"
+      position="bottom"
+      v-if="$q.screen.lt.md"
+    >
+      <q-card style="width: 100%; max-height: 70vh; border-radius: 16px 16px 0 0;">
+        <div class="scene-board-header">Scenes</div>
+
+        <div style="padding: 12px 16px">
+          <q-btn
+            label="New Scene"
+            color="primary"
+            icon="add"
+            unelevated
+            no-caps
+            class="full-width"
+            size="sm"
+            @click="handleCreateSceneMobile"
+            style="font-family: var(--wda-font-ui)"
+          />
+        </div>
+
+        <div
+          v-if="scenesStore.loading"
+          class="text-center q-mt-lg"
+          style="color: var(--wda-text-muted)"
+        >
+          <q-spinner size="md" color="primary" />
+        </div>
+
+        <div
+          v-else-if="scenesStore.scenes.length === 0"
+          style="
+            padding: 16px;
+            text-align: center;
+            color: var(--wda-text-muted);
+            font-size: 0.85rem;
+          "
+        >
+          No scenes yet. Create one to start writing.
+        </div>
+
+        <div v-else ref="mobileSceneListContainer" class="scene-list" style="max-height: 50vh; overflow-y: auto">
+          <div v-for="scene in scenesStore.scenes" :key="scene.id" :data-id="scene.id">
+            <div
+              class="scene-card"
+              :class="{ active: scenesStore.activeSceneId === scene.id }"
+              @click="selectSceneMobile(scene.id)"
+            >
+              <div style="display: flex; align-items: center; gap: 8px; min-width: 0">
+                <div style="flex: 1; min-width: 0">
+                  <div class="scene-card-order">#{{ scene.order + 1 }}</div>
+                  <div class="scene-card-title">{{ scene.title || 'Untitled Scene' }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </q-card>
+    </q-dialog>
+
     <!-- Right: Editor Area -->
     <div class="editor-area">
       <!-- Top bar with actions -->
@@ -99,11 +171,25 @@
         style="
           display: flex;
           align-items: center;
-          justify-content: flex-end;
+          justify-content: space-between;
           padding: 8px 16px;
           border-bottom: 1px solid var(--wda-border);
         "
       >
+        <div class="row items-center no-wrap" style="gap: 8px; min-width: 0; flex: 1">
+          <q-btn
+            v-if="$q.screen.lt.md"
+            flat
+            dense
+            round
+            icon="arrow_back"
+            size="sm"
+            @click="$router.back()"
+          />
+          <span v-if="titleDraft && $q.screen.lt.md" class="text-caption ellipsis" style="color: var(--wda-text); font-weight: 500; flex: 1">
+            {{ titleDraft }}
+          </span>
+        </div>
         <div class="panel-icon-buttons">
           <q-btn flat dense round icon="history" size="sm" class="panel-icon-btn" :class="{ active: drawerOpen && drawerMode === 'history' }" @click="openHistoryDrawer">
             <q-tooltip>Version History</q-tooltip>
@@ -348,99 +434,129 @@
           <div class="panel-body">
             <div v-if="characterOptions.length > 0 || placeOptions.length > 0 || timelineEventOptions.length > 0 || groupOptions.length > 0 || itemOptions.length > 0 || loreOptions.length > 0">
               <div class="tag-section">
-                <div class="tag-section-label">Characters</div>
-                <q-select
-                  v-model="selectedCharacters"
-                  :options="characterOptions"
-                  label="Characters"
-                  multiple
-                  use-chips
-                  dense
-                  outlined
-                  color="primary"
-                  clearable
-                  @update:model-value="saveTags"
-                />
+                <div class="tag-section-label tag-section-toggle" @click="toggleSection('characters')">
+                  <span>Characters</span>
+                  <q-icon :name="expandedSections.characters ? 'expand_less' : 'expand_more'" size="sm" />
+                </div>
+                <div v-if="expandedSections.characters" class="tag-section-body">
+                  <q-select
+                    v-model="selectedCharacters"
+                    :options="characterOptions"
+                    label="Characters"
+                    multiple
+                    use-chips
+                    dense
+                    outlined
+                    color="primary"
+                    clearable
+                    @update:model-value="saveTags"
+                  />
+                </div>
               </div>
 
               <div class="tag-section">
-                <div class="tag-section-label">Places</div>
-                <q-select
-                  v-model="selectedPlaces"
-                  :options="placeOptions"
-                  label="Places"
-                  multiple
-                  use-chips
-                  dense
-                  outlined
-                  color="primary"
-                  clearable
-                  @update:model-value="saveTags"
-                />
+                <div class="tag-section-label tag-section-toggle" @click="toggleSection('places')">
+                  <span>Places</span>
+                  <q-icon :name="expandedSections.places ? 'expand_less' : 'expand_more'" size="sm" />
+                </div>
+                <div v-if="expandedSections.places" class="tag-section-body">
+                  <q-select
+                    v-model="selectedPlaces"
+                    :options="placeOptions"
+                    label="Places"
+                    multiple
+                    use-chips
+                    dense
+                    outlined
+                    color="primary"
+                    clearable
+                    @update:model-value="saveTags"
+                  />
+                </div>
               </div>
 
               <div class="tag-section">
-                <div class="tag-section-label">Timeline Events</div>
-                <q-select
-                  v-model="selectedTimelineEvents"
-                  :options="timelineEventOptions"
-                  label="Timeline Events"
-                  multiple
-                  use-chips
-                  dense
-                  outlined
-                  color="primary"
-                  clearable
-                  @update:model-value="saveTags"
-                />
+                <div class="tag-section-label tag-section-toggle" @click="toggleSection('timelineEvents')">
+                  <span>Timeline Events</span>
+                  <q-icon :name="expandedSections.timelineEvents ? 'expand_less' : 'expand_more'" size="sm" />
+                </div>
+                <div v-if="expandedSections.timelineEvents" class="tag-section-body">
+                  <q-select
+                    v-model="selectedTimelineEvents"
+                    :options="timelineEventOptions"
+                    label="Timeline Events"
+                    multiple
+                    use-chips
+                    dense
+                    outlined
+                    color="primary"
+                    clearable
+                    @update:model-value="saveTags"
+                  />
+                </div>
               </div>
 
               <div class="tag-section">
-                <div class="tag-section-label">Groups</div>
-                <q-select
-                  v-model="selectedGroups"
-                  :options="groupOptions"
-                  label="Groups"
-                  multiple
-                  use-chips
-                  dense
-                  outlined
-                  color="primary"
-                  clearable
-                  @update:model-value="saveTags"
-                />
+                <div class="tag-section-label tag-section-toggle" @click="toggleSection('groups')">
+                  <span>Groups</span>
+                  <q-icon :name="expandedSections.groups ? 'expand_less' : 'expand_more'" size="sm" />
+                </div>
+                <div v-if="expandedSections.groups" class="tag-section-body">
+                  <q-select
+                    v-model="selectedGroups"
+                    :options="groupOptions"
+                    label="Groups"
+                    multiple
+                    use-chips
+                    dense
+                    outlined
+                    color="primary"
+                    clearable
+                    @update:model-value="saveTags"
+                  />
+                </div>
               </div>
 
               <div class="tag-section">
-                <div class="tag-section-label">Items</div>
-                <q-select
-                  v-model="selectedItems"
-                  :options="itemOptions"
-                  label="Items"
-                  multiple
-                  use-chips
-                  dense
-                  outlined
-                  color="primary"
-                  clearable
-                  @update:model-value="saveTags"
-                />
+                <div class="tag-section-label tag-section-toggle" @click="toggleSection('items')">
+                  <span>Items</span>
+                  <q-icon :name="expandedSections.items ? 'expand_less' : 'expand_more'" size="sm" />
+                </div>
+                <div v-if="expandedSections.items" class="tag-section-body">
+                  <q-select
+                    v-model="selectedItems"
+                    :options="itemOptions"
+                    label="Items"
+                    multiple
+                    use-chips
+                    dense
+                    outlined
+                    color="primary"
+                    clearable
+                    @update:model-value="saveTags"
+                  />
+                </div>
               </div>
 
               <div class="tag-section">
-                <div class="tag-section-label">Lore</div>
-                <q-select
-                  v-model="selectedLore"
-                  :options="loreOptions"
-                  label="Lore"
-                  multiple
-                  use-chips
-                  dense
-                  outlined
-                  color="primary"
-                  clearable
-                  @update:model-value="saveTags"
-                />
+                <div class="tag-section-label tag-section-toggle" @click="toggleSection('lore')">
+                  <span>Lore</span>
+                  <q-icon :name="expandedSections.lore ? 'expand_less' : 'expand_more'" size="sm" />
+                </div>
+                <div v-if="expandedSections.lore" class="tag-section-body">
+                  <q-select
+                    v-model="selectedLore"
+                    :options="loreOptions"
+                    label="Lore"
+                    multiple
+                    use-chips
+                    dense
+                    outlined
+                    color="primary"
+                    clearable
+                    @update:model-value="saveTags"
+                  />
+                </div>
               </div>
             </div>
             <div v-else class="text-center q-mt-xl" style="color: var(--wda-text-muted)">
@@ -888,6 +1004,25 @@ const groupsStore = useGroupsStore()
 const itemsStore = useItemsStore()
 const loreStore = useLoreStore()
 
+// ---- Mobile scene board state ----
+const sceneBoardOpen = ref(false)
+const mobileSceneListContainer = ref(null)
+
+function selectSceneMobile(id) {
+  scenesStore.setActiveScene(id)
+  sceneBoardOpen.value = false
+}
+
+async function handleCreateSceneMobile() {
+  try {
+    const scene = await scenesStore.createScene(projectId, { title: '' })
+    scenesStore.setActiveScene(scene.id)
+    sceneBoardOpen.value = false
+  } catch {
+    // error is on store
+  }
+}
+
 // ---- Editor state ----
 const fullscreen = ref(false)
 const layoutFullscreen = inject('layoutFullscreen', ref(false))
@@ -979,7 +1114,8 @@ const showNoKeyState = computed(() => {
 
 // Save status helpers
 const saveStatusClass = computed(() => {
-  return scenesStore.saveStatus
+  if (scenesStore.saveStatus === 'idle') return 'status-ready'
+  return 'status-' + scenesStore.saveStatus
 })
 
 const saveStatusText = computed(() => {
@@ -1271,6 +1407,14 @@ const selectedItems = ref([])
 const selectedLore = ref([])
 
 const tagsDrawerOpen = ref(false)
+const expandedSections = ref({
+  characters: true,
+  places: true,
+  timelineEvents: true,
+  groups: true,
+  items: true,
+  lore: true,
+})
 
 function openTagsDrawer() {
   tagsDrawerOpen.value = true
@@ -1278,6 +1422,11 @@ function openTagsDrawer() {
 
 function closeTagsDrawer() {
   tagsDrawerOpen.value = false
+}
+
+function toggleSection(name) {
+  const next = !expandedSections.value[name]
+  expandedSections.value = { ...expandedSections.value, [name]: next }
 }
 
 const tagsSummary = computed(() => {
@@ -1578,9 +1727,9 @@ const showFreeTierWarning = ref(false)
 const drawerExpanded = ref(false)
 
 const drawerWidth = computed(() => {
-  if (drawerMode.value === 'history') return 380
-  if (drawerExpanded.value) return Math.floor(window.innerWidth * 0.5)
-  return 400
+  if (drawerMode.value === 'history') return Math.min(380, window.innerWidth)
+  if (drawerExpanded.value) return Math.floor(window.innerWidth * 0.85)
+  return Math.min(400, window.innerWidth)
 })
 
 function openAiDrawer() {

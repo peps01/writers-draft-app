@@ -363,4 +363,38 @@ async function handleSubmit() {
 .body--dark .cover-upload-area:hover {
   background: var(--wda-bg);
 }
+
+@media (max-width: 600px) {
+  .create-project-page {
+    padding: 16px;
+  }
+
+  .create-project-header {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .create-project-header .q-btn {
+    align-self: flex-start;
+  }
+
+  .create-project-card {
+    flex-direction: column;
+    gap: 24px;
+    padding: 20px;
+  }
+
+  .create-project-cover-col {
+    width: 100%;
+  }
+
+  .cover-upload-area {
+    aspect-ratio: 16 / 9;
+    max-height: 250px;
+  }
+
+  .create-project-actions .q-btn {
+    width: 100%;
+  }
+}
 </style>
