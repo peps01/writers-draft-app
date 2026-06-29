@@ -101,15 +101,19 @@ DATABASES['default']['OPTIONS'] = {
 
 
 # CORS
-CORS_ALLOWED_ORIGINS = (
-    env.list('CORS_ALLOWED_ORIGINS', default=[])
-    + ['https://writers-draft-app.vercel.app']
-)
+CORS_ALLOWED_ORIGINS = [
+    o.rstrip('/') for o in (
+        env.list('CORS_ALLOWED_ORIGINS', default=[])
+        + ['https://writers-draft-app.vercel.app']
+    )
+]
 CORS_ALLOW_CREDENTIALS = True
-CSRF_TRUSTED_ORIGINS = (
-    env.list('CSRF_TRUSTED_ORIGINS', default=[])
-    + ['https://writers-draft-app.vercel.app']
-)
+CSRF_TRUSTED_ORIGINS = [
+    o.rstrip('/') for o in (
+        env.list('CSRF_TRUSTED_ORIGINS', default=[])
+        + ['https://writers-draft-app.vercel.app']
+    )
+]
 
 
 # Security — HTTPS (enable when deployed behind SSL)
