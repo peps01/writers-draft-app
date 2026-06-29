@@ -128,7 +128,7 @@ REST_FRAMEWORK = {
 
 
 # Anthropic
-ANTHROPIC_API_KEY = env('ANTHROPIC_API_KEY')
+ANTHROPIC_API_KEY = env('ANTHROPIC_API_KEY', default='')
 # Gemini
 GEMINI_API_KEY = env('GEMINI_API_KEY', default='')
 
