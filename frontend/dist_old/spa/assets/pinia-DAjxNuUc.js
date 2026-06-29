@@ -1,1 +1,0 @@
-import{_ as e,g as t}from"./index-BPJFpvon.js";var n=t(({app:t})=>{t.use(e())});export{n as default};

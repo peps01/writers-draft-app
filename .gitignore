@@ -37,3 +37,6 @@ docker-compose.override.yml
 
 # Uploads / media (if Django collects them locally)
 media/
+frontend/dist_old/
+frontend/dist_backup/
+frontend/.quasar_old/
