@@ -11,6 +11,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.db.models import Q
 from django.http import FileResponse
+from django.middleware.csrf import get_token
 from django.utils.decorators import method_decorator
 from django_ratelimit.core import is_ratelimited
 from rest_framework import viewsets, status
@@ -699,6 +700,12 @@ class MessageViewSet(viewsets.ModelViewSet):
             'assistant_message': assistant_ser.data,
             'is_free_tier': result['is_free_tier'],
         }, status=status.HTTP_201_CREATED)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def csrf_token_view(request):
+    return Response({'csrfToken': get_token(request)})
 
 
 @api_view(['POST'])

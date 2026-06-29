@@ -29,6 +29,7 @@ conversations_router = routers.NestedSimpleRouter(
 conversations_router.register('messages', views.MessageViewSet, basename='project-conversation-messages')
 
 auth_urls = [
+    path('auth/csrf/', views.csrf_token_view, name='auth-csrf'),
     path('auth/login/', views.login_view, name='auth-login'),
     path('auth/logout/', views.logout_view, name='auth-logout'),
     path('auth/user/', views.user_view, name='auth-user'),

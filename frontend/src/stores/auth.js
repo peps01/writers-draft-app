@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { api } from '@/boot/axios'
+import { api, fetchCsrfToken } from '@/boot/axios'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref(null)
@@ -17,16 +17,19 @@ export const useAuthStore = defineStore('auth', () => {
   async function login(username, password) {
     const { data } = await api.post('/auth/login/', { username, password })
     user.value = data
+    await fetchCsrfToken()
   }
 
   async function register(username, email, password) {
     const { data } = await api.post('/auth/register/', { username, email, password })
     user.value = data
+    await fetchCsrfToken()
   }
 
   async function logout() {
     await api.post('/auth/logout/')
     user.value = null
+    await fetchCsrfToken()
   }
 
   async function fetchCurrentUser() {

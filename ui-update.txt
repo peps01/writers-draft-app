@@ -1,670 +1,1016 @@
 ================================================================================
-WRITER'S DRAFT APP - COMPLETE UI DOCUMENTATION
+WRITER'S DRAFT APP — COMPLETE PROJECT DOCUMENTATION FOR UI/UX DESIGN
 ================================================================================
 
 AUTHOR: Peps (pepepmjegano@gmail.com)
 VERSION: 0.0.1
-STACK: Docker-based monorepo — Django REST backend + Quasar/Vue 3 frontend + PostgreSQL
+STACK: Docker monorepo — Django REST backend + Quasar/Vue 3 frontend + PostgreSQL
 
-PURPOSE: A full-stack novel-writing web application. Writers can manage projects,
-write scenes in a rich text editor, maintain a Story Bible (characters, places,
-timeline events), track writing statistics, export to EPUB, and get AI-powered
-writing assistance via Google Gemini.
+PURPOSE: Full-stack novel-writing web app. Writers manage projects, write scenes
+in a rich text editor (TipTap/ProseMirror), maintain a Story Bible (characters,
+places, timeline events, lore, items, groups), track writing statistics, export
+to EPUB, and get AI writing assistance via Google Gemini.
 
-FRONTEND FRAMEWORKS/LIBRARIES:
-- Vue 3 (Composition API, <script setup>)
-- Quasar 2 (q-btn, q-input, q-dialog, q-card, q-select, q-icon, q-layout, q-header,
-  q-drawer, q-tabs, q-tab-panels, q-form, q-banner, q-skeleton, q-spinner, q-btn-toggle,
-  q-checkbox, q-toggle, etc.)
-- Vue Router 5 (hash mode routing)
-- Pinia 2 (state management)
-- Axios (HTTP client)
-- TipTap 3 / ProseMirror (rich text editor)
-- Chart.js 4 + vue-chartjs (statistics charts)
-- SortableJS (drag-and-drop reordering)
-- Google Fonts: Playfair Display, Inter, Lora
-
-BACKEND: Django 5 + Django REST Framework + PostgreSQL 16
-EXTERNAL: Google Gemini API (gemini-2.5-flash), EPUB export via EbookLib
+CURRENT STATE: Desktop-first design. NO responsive/mobile optimizations.
+This document is for an AI to generate mobile UI/UX design prompts.
 
 ================================================================================
 TABLE OF CONTENTS
 ================================================================================
-1. App Entry
-2. Router / Routes
-3. Pages (full details)
-4. Reusable Components
-5. ProseMirror Extensions
-6. Pinia Stores
-7. Backend API Endpoints
-8. CSS / Theming
-9. Architectural Notes
+1. Tech Stack & Libraries
+2. Layout Structure (MainAppLayout)
+3. Router / Routes
+4. AppNavbar Component (persistent top bar)
+5. AppSidebar Component (persistent left drawer)
+6. All Pages — Full Details
+7. All Reusable Components
+8. ProseMirror Extensions
+9. All Pinia Stores — Complete State & Actions
+10. Backend API Endpoints
+11. CSS Theming System
+12. Data Flow & State Management Patterns
+13. Current Responsive Behavior (or lack thereof)
+14. Design Patterns & Conventions
+15. Mobile Adaptation Considerations
 
 ================================================================================
-1. APP ENTRY
+1. TECH STACK & LIBRARIES
 ================================================================================
 
-File: /frontend/src/App.vue
-- Root component: renders <router-view /> only
-- Watches Quasar dark mode toggle ($q.dark) and persists to localStorage('wda_dark_mode')
+- Vue 3.5 (Composition API, <script setup> syntax everywhere)
+- Quasar 2.x UI framework (q-btn, q-input, q-dialog, q-card, q-select,
+  q-icon, q-layout, q-header, q-drawer, q-tabs, q-tab-panels, q-form,
+  q-banner, q-skeleton, q-spinner, q-btn-toggle, q-checkbox, q-toggle,
+  q-linear-progress, q-chip, q-scroll-area, q-menu, q-item, q-separator,
+  q-badge, q-field, q-space, q-dialog-plugin)
+- Vue Router 5 (hash mode — createWebHashHistory)
+- Pinia 3 (state management, Composition API style stores)
+- Axios (HTTP client, withCredentials: true for session cookies)
+- TipTap 3 + ProseMirror (rich text editor)
+- Chart.js 4 + vue-chartjs (statistics bar charts)
+- SortableJS (drag-and-drop for scene reorder, timeline reorder)
+- Google Fonts: Playfair Display (headings), Inter (UI), Lora (body text)
+- Quasar icon set: Material Icons (filled style)
+- marked (Markdown rendering for AI chat responses)
+
+Backend:
+- Django 5 + Django REST Framework
+- PostgreSQL 16 (via Supabase)
+- Google Gemini API (gemini-2.5-flash)
+- EbookLib (EPUB export)
+- django-cors-headers, django-environ, whitenoise, django-ratelimit
 
 ================================================================================
-2. ROUTER / ROUTES
+2. LAYOUT STRUCTURE
 ================================================================================
 
-File: /frontend/src/router/routes.js
-File: /frontend/src/router/index.js
+File: src/layouts/MainAppLayout.vue (64 lines)
+File: src/layouts/MainLayout.vue (UNUSED — legacy boilerplate)
 
-Route mode: hash mode (createWebHashHistory)
+MainAppLayout is the ONLY active layout. It wraps ALL auth-required pages
+(and is NOT used on Login/Register/404 pages).
+
+Template structure:
+  <q-layout view="hHh LpR lFf" class="wda-dashboard-page">
+    <AppNavbar v-if="!layoutFullscreen" />       ← shown on all pages except fullscreen write mode
+    <AppSidebar v-if="!layoutFullscreen" />       ← shown on all pages except fullscreen write mode
+    <q-page-container>
+      <router-view />                             ← page content
+    </q-page-container>
+    <ExportDialog v-if="currentProjectId" />      ← globally available
+  </q-layout>
+
+Key details:
+- layoutFullscreen is provided via provide/inject — WritePage toggles it
+- currentProjectId is computed from route.params.id
+- ExportDialog is rendered at layout level, triggered via inject('openExportDialog')
+- Login, Register, and 404 pages do NOT use MainAppLayout — they are standalone
+
+The q-layout has:
+  q-header: AppNavbar (64px height)
+  q-drawer (left, 220px width, always visible, non-toggleable): AppSidebar
+  q-page-container: fills remaining space
+
+================================================================================
+3. ROUTER / ROUTES
+================================================================================
+
+File: src/router/routes.js
+File: src/router/index.js
+
+Mode: hash mode (URLs have /#/)
 
 Route table:
-  /                  -> redirects to /dashboard
-  /login             -> LoginPage.vue        [guest only]
-  /register          -> RegisterPage.vue     [guest only]
-  /dashboard         -> DashboardPage.vue    [auth required]
-  /settings          -> SettingsPage.vue     [auth required]
-  /projects/:id      -> ProjectDetailPage.vue [auth required]
-  /projects/:id/story-bible  -> StoryBiblePage.vue [auth required]
-  /projects/:id/write        -> WritePage.vue      [auth required]
-  /projects/:id/statistics   -> StatisticsPage.vue [auth required]
-  /:catchAll(.*)*    -> ErrorNotFound.vue    [no guard]
+  /                    → redirects to /dashboard
+  /login               → LoginPage.vue        [meta: guest only]
+  /register            → RegisterPage.vue     [meta: guest only]
+  /dashboard           → DashboardPage.vue    [meta: requiresAuth]
+  /settings            → SettingsPage.vue     [meta: requiresAuth]
+  /projects/:id        → ProjectDetailPage.vue [meta: requiresAuth]
+  /projects/:id/story-bible  → StoryBiblePage.vue     [meta: requiresAuth]
+  /projects/:id/write        → WritePage.vue          [meta: requiresAuth]
+  /projects/:id/statistics   → StatisticsPage.vue     [meta: requiresAuth]
+  /:catchAll(.*)*      → ErrorNotFound.vue    [no guard]
 
-Route guards (in router/index.js):
-  - requiresAuth meta: redirects unauthenticated users to /login
-  - guest meta: redirects authenticated users to /dashboard
-  - beforeEach guard fetches CSRF token if not present
+Auth-required pages use MainAppLayout (imported in route component-scope).
+Guest-only pages and 404 page are standalone (no layout wrapper).
+
+Route guards (in router/index.js beforeEach):
+  1. Fetch CSRF token if csrftoken cookie is missing (GET /api/auth/user/ → sets cookie)
+  2. If route.meta.requiresAuth && !isAuthenticated → redirect to /login
+  3. If route.meta.guest && isAuthenticated → redirect to /dashboard
 
 ================================================================================
-3. PAGES (Full Details)
+4. APPNAVBAR COMPONENT (persistent top header bar)
 ================================================================================
 
-3.1 LOGIN PAGE
-File: /frontend/src/pages/LoginPage.vue
+File: src/components/AppNavbar.vue (382 lines)
+
+Structure:
+  <q-header class="wda-navbar">                    ← 64px height, z-index: 2000
+    flex row with 3 sections:
+
+    LEFT: logo + wordmark
+      <img src="/icons/quill.svg" alt="✒️" />      ← Apache 2.0 quill icon, 20px height
+      <span>Writer's Draft</span>                  ← Playfair Display, 22px, semibold
+
+    CENTER: search bar
+      <q-input rounded outlined dense />           ← max 320px, 38px height
+      placeholder: "Search manuscript..." or "Select a project to search"
+      disabled when no project is selected
+      debounced search (400ms) via SearchStore
+      prepend: search icon, append: close icon (when query is active)
+
+      Search dropdown (teleported to body):
+        Shows up to 4 results with scene title + snippet + match count
+        "See all results" button opens full search panel
+
+      Full search results panel:
+        On WritePage: right-positioned maximized dialog (480px)
+        On other project pages: centered modal dialog (600px, 80vh)
+        Contains SearchFullPanel component
+
+    RIGHT: action buttons
+      Dark mode toggle (circle button, light_mode/dark_mode icon)
+      Export button (file_download icon, only on project routes)
+      New Project button (add icon)
+      Settings button (settings icon)
+      User avatar (36px circle, user initial letter, primary color bg)
+        Dropdown menu: username + email, logout (red icon)
+
+Fullscreen mode: hidden when layoutFullscreen is true (WritePage fullscreen)
+
+================================================================================
+5. APPSIDEBAR COMPONENT (persistent left drawer)
+================================================================================
+
+File: src/components/AppSidebar.vue (87 lines)
+
+Structure:
+  <q-drawer side="left" :width="220" bordered permanent>
+
+  HEADER:
+    User initial badge (36px, primary bg, white letter, Playfair Display)
+    Username label (Inter, 15px, bold)
+
+  NAVIGATION ITEMS (vertical list):
+    Dashboard  → icon="dashboard"     → /dashboard
+    Projects   → icon="auto_stories"  → /projects
+    Story Bible→ icon="menu_book"     → /projects/:id/story-bible  [disabled if no project]
+    Write      → icon="edit_note"     → /projects/:id/write        [disabled if no project]
+    Statistics → icon="bar_chart"     → /projects/:id/statistics   [disabled if no project]
+    Settings   → icon="settings"      → /settings
+
+  Active state: left border highlight (3px, primary color)
+  Disabled state: opacity 0.4, no pointer events
+  Hidden when layoutFullscreen is true
+
+================================================================================
+6. ALL PAGES — FULL DETAILS
+================================================================================
+
+------- 6.1 LOGIN PAGE -------
+File: src/pages/LoginPage.vue (125 lines)
 URL: /login
 Auth: guest only
+No layout (standalone)
 
-UI Elements:
-- Brand heading: "Writer's Draft"
-- Tagline: "Your story. Your world. All in one place."
-- Login form (q-form):
-  - Username q-input (outlined, color primary, autocomplete="username")
-  - Password q-input (type password, autocomplete="current-password")
-  - Error banner (q-banner, red bg, conditionally visible)
-  - Submit button: "Log in" (q-btn, full-width, loading state, no-caps)
-- Footer link: "Don't have an account? Register" (flat button -> /register)
-- Dark mode toggle button (fixed top-right, light_mode/dark_mode icons)
-- Loading states: disabled button while submitting
-- Error state: red banner with error message
-- Success: navigates to /dashboard
+Layout: flex row centered (auth-page class)
+  Left side (hidden on ≤768px): brand display
+    "Writer's Draft" logo (Playfair Display, 2.8rem)
+    Tagline: "Your story. Your world. All in one place." (Lora italic)
+  Right side: auth-form-card (q-card, max 400px)
 
-3.2 REGISTER PAGE
-File: /frontend/src/pages/RegisterPage.vue
+Form elements:
+  Username q-input (outlined, color primary, autocomplete="username")
+  Password q-input (type password, autocomplete="current-password")
+  Error area: q-banner (red bg, conditionally visible)
+  Submit button: "Log in" (q-btn, full-width, no-caps, loading state)
+  Footer: "Don't have an account? Register" (flat button → /register)
+  Dark mode toggle: fixed top-right circle button
+
+States: loading (button disabled + spinner), error (red banner), success (navigate to /dashboard)
+
+------- 6.2 REGISTER PAGE -------
+File: src/pages/RegisterPage.vue (125 lines)
 URL: /register
 Auth: guest only
+No layout (standalone)
 
-UI Elements:
-- Same brand display as login
-- Registration form (q-form):
-  - Username q-input (outlined, autocomplete="username")
-  - Email q-input (type email, autocomplete="email")
-  - Password q-input (type password, autocomplete="new-password")
-  - Error banner (q-banner, red bg, conditionally visible)
-  - Submit button: "Register" (q-btn, full-width, loading state, no-caps)
-- Footer link: "Already have an account? Log in" (flat button -> /login)
-- Dark mode toggle (same as login)
+Same visual pattern as LoginPage.
 
-3.3 DASHBOARD PAGE
-File: /frontend/src/pages/DashboardPage.vue (376 lines)
+Form elements:
+  Username q-input (outlined, autocomplete="username")
+  Email q-input (type email, autocomplete="email")
+  Password q-input (type password, autocomplete="new-password")
+  Error q-banner (red)
+  Submit: "Register" (full-width, loading)
+  Footer: "Already have an account? Log in"
+  Dark mode toggle
+
+------- 6.3 DASHBOARD PAGE -------
+File: src/pages/DashboardPage.vue (376 lines)
 URL: /dashboard
 Auth: required
 
-Layout: Full-page with header bar + scrollable project grid
+Layout: wda-page class (max-width: 1200px, centered, padded 32px 40px)
 
-Header section:
-- Title: "My Projects"
-- Subtitle: "Continue your writing journey"
-- Header buttons (right-aligned):
-  - Dark mode toggle icon button
-  - Username display (from auth store)
-  - "Settings" flat button (icon="settings", -> /settings)
-  - "Logout" flat button (icon="logout", calls authStore.logout())
-  - "New Project" primary button (icon="add", opens create dialog)
+TOP BAR:
+  "My Projects" title (Playfair Display, 30px)
+  Subtitle: "Continue your writing journey"
+  Right buttons: dark mode toggle, username, Settings (flat), Logout (flat), New Project (primary)
 
-States:
-- Loading: 6 skeleton cards (q-skeleton, type="rect", wda-shadow class)
-- Error: error icon + message + "Retry" button
-- Empty: "Your story starts here" heading + "Create your first project" button
-- Populated: Grid of project cards
+STATES:
+  Loading: 6 skeleton cards (q-skeleton type="rect")
+  Error: error icon + message + "Retry" button
+  Empty: "Your story starts here" heading + "Create your first project" button (large)
+  Populated: project grid (auto-fill, minmax 280px)
 
-Project card (q-card, colored top border cycling 5 accent colors):
-- Project title (ellipsis overflow)
-- Word count + scene count
-- "Edited X time(s) ago" relative timestamp
-- Context menu (more_vert icon button) -> "Rename" and "Delete"
+Project Cards (q-card with colored top accent border, 5 cycling colors):
+  Project title (ellipsis overflow)
+  Word count + scene count
+  "Edited X time(s) ago" relative timestamp
+  Context menu (more_vert) → "Rename" and "Delete"
 
-Dialogs:
-- New Project Dialog (q-dialog):
-  - Title: "Create New Project"
-  - Input: project title (q-input, outlined, autofocus)
-  - Actions: "Cancel" (flat) / "Create" (primary)
-- Rename Project Dialog:
-  - Title: "Rename Project"
-  - Input: new title (q-input, outlined, pre-filled)
-  - Actions: "Cancel" (flat) / "Save" (primary)
-- Delete Project Dialog:
-  - Title: "Delete Project"
-  - Message: "Are you sure you want to delete \"[project title]\"? This action cannot be undone."
-  - Actions: "Cancel" (flat) / "Delete" (negative/red)
+DIALOGS:
+  1. New Project Dialog: title input + Cancel/Create buttons
+  2. Rename Project Dialog: pre-filled title input + Cancel/Save
+  3. Delete Project Dialog: confirmation message + Cancel/Delete (red)
 
-3.4 PROJECT DETAIL PAGE
-File: /frontend/src/pages/ProjectDetailPage.vue (156 lines)
+------- 6.4 PROJECT DETAIL PAGE -------
+File: src/pages/ProjectDetailPage.vue (156 lines)
 URL: /projects/:id
 Auth: required
 
-Layout: Centered column with top bar + action card grid
+Layout: wda-page, centered column
 
-UI Elements:
-- Top bar:
-  - "Back to Dashboard" button (flat, icon="arrow_back")
-  - Dark mode toggle
-- Project header: Title + "Created X ago" timestamp
-- 4 action cards in a grid (q-card, hoverable, clickable):
+TOP BAR:
+  "Back to Dashboard" button (flat, icon=arrow_back)
+  Dark mode toggle
 
-Card 1: "Start Writing" (icon="edit_note") -> navigates to /projects/:id/write
-Card 2: "Story Bible" (icon="menu_book") -> navigates to /projects/:id/story-bible
-Card 3: "Export EPUB" (icon="download") -> opens ExportDialog component
-Card 4: "Statistics" (icon="bar_chart") -> navigates to /projects/:id/statistics
+CONTENT:
+  Project title (Playfair Display, large)
+  "Created X ago" timestamp
+  4 action cards in responsive grid (auto-fill, minmax 220px):
 
-States:
-- Loading: centered q-spinner
-- Not found: error icon + "Project not found" + "Back to Dashboard" button
+  1. "Start Writing" (icon=edit_note) → /projects/:id/write
+  2. "Story Bible" (icon=menu_book) → /projects/:id/story-bible
+  3. "Export EPUB" (icon=download) → opens ExportDialog
+  4. "Statistics" (icon=bar_chart) → /projects/:id/statistics
 
-3.5 WRITE PAGE (MOST COMPLEX PAGE)
-File: /frontend/src/pages/WritePage.vue (1149 lines)
+STATES: loading (q-spinner), not found (icon + message + back button)
+
+------- 6.5 WRITE PAGE (MOST COMPLEX) -------
+File: src/pages/WritePage.vue (1149 lines)
 URL: /projects/:id/write
 Auth: required
 
-Layout: Split layout — left scene board panel + right editor area
+Layout: horizontal split layout
+  Left panel: scene board (260px, borders, bg surface-2)
+  Right panel: editor area (flex: 1)
 
-=== LEFT PANEL — Scene Board ===
-- Header: "Scenes" title
-- "New Scene" button (primary, icon="add", full width, no-caps)
-- Scene list (scrollable, drag-and-drop via SortableJS):
-  - Each scene card: drag handle (drag_indicator icon), order number, title
-    (or "Untitled Scene" fallback), active scene highlighted with left border accent
-  - Context menu (more_vert) -> "Delete" option
-  - Reorder status: "Saving order..." with small spinner (shown during reorder save)
+--- LEFT PANEL: SCENE BOARD ---
+  Header: "Scenes" (uppercase, small, muted)
+  "New Scene" button (primary, icon=add, full-width, no-caps)
+  Scene list (scrollable, SortableJS drag-and-drop):
 
-=== RIGHT PANEL — Editor Area ===
+  Scene cards:
+    Drag handle (drag_indicator icon)
+    Order number
+    Scene title (or "Untitled Scene")
+    Active state: left primary border + background highlight
+    Context menu (more_vert) → "Delete"
+    Reorder state: "Saving order..." spinner
 
-Top bar:
-- Back button (icon="arrow_back", -> /projects/:id, hidden when fullscreen)
-- Dark mode toggle
-- "Version History" button (icon="history", opens right drawer in version mode)
-- "AI Assistant" button (icon="auto_awesome", opens right drawer in AI mode)
-- "Export" button (icon="download", opens ExportDialog)
-- Fullscreen toggle (icon="fullscreen" / "fullscreen_exit")
+--- RIGHT PANEL: EDITOR AREA ---
 
-Scene title: Editable q-input, auto-saves on blur/enter
+  Top bar (flex row):
+    Back button (arrow_back, → /projects/:id, hidden in fullscreen)
+    Dark mode toggle
+    Version History button (history icon, opens right drawer)
+    AI Assistant button (auto_awesome icon, opens right drawer)
+    Export button (download icon, opens ExportDialog)
+    Fullscreen toggle (fullscreen/fullscreen_exit icons)
 
-Save status indicator: text showing "Saving..." / "Saved" / "Error saving" / "Ready"
+  Scene title: editable q-input (auto-saves on blur/enter)
 
-Formatting toolbar toggle: Expandable section with EditorToolbar component
-- Collapsed: shows clickable "Formatting" label + scene title preview
+  Save status indicator: badge showing "Saving..." / "Saved" / "Error saving" / "Ready"
+    Colors: blue / green / red / grey
 
-Find & Replace bar (FindReplaceBar component, toggled via Ctrl+F or toolbar button)
+  Formatting toolbar toggle: expandable section with EditorToolbar component
+    Collapsed: show "Formatting" label + scene title preview
 
-Rich Text Editor (RichTextEditor component, full-height, flex-grow)
+  Find & Replace bar (FindReplaceBar component, Ctrl+F toggle)
 
-Word count display in toolbar
+  Rich Text Editor (RichTextEditor component, flex-grow, full height)
 
-=== Story Bible Tags Section (expandable, at bottom of editor) ===
-- Character multi-select (q-select with chips, outlined)
-- Place multi-select (q-select with chips, outlined)
-- Timeline Event multi-select (q-select with chips, outlined)
-- Auto-tagging: scans content for entity names, auto-selects matching tags every 3s
-- Empty state: "No characters, places, or timeline events yet. Add some to your Story Bible"
-  with link to story bible page
+  Story Bible Tags section (expandable, at bottom):
+    Character multi-select (q-select chips, outlined)
+    Place multi-select (q-select chips, outlined)
+    Timeline Event multi-select (q-select chips, outlined)
+    Auto-tagging: scans content for entity names every 3s
+    Empty: "No characters, places, or timeline events yet."
 
-=== Right Drawer (two modes, q-drawer, side="right") ===
+  Right Drawer (q-drawer, side="right", two modes):
 
-Mode 1 — Version History:
-- Lists versions with: timestamp, content preview (first 200 chars), "Restore" button
-- "Load more" button for paginated loading
-- Loading state on each restore
-- Restore dialog: timestamp preview + content preview + password q-input + "Restore" button
+    Mode 1 — Version History:
+      Lists versions with timestamp + content preview + "Restore" button
+      Paginated loading ("Load more" button)
+      Restore requires password
 
-Mode 2 — AI Assistant:
-- Free-tier warning banner (shown once per session, sessionStorage'd)
-- Story Bible tagging reminder banner (shown when scene has no tags)
-- "Not configured" state (when no API key) with link to Settings page
-- Error banners for API failures
-- Chat messages: user messages = primary color bubbles, assistant = bordered bubbles
-- "Thinking..." indicator with spinner while AI responds
-- Message input (q-input textarea, outlined) + Send button (round, icon="send", primary)
-- Empty conversation: just the input field
+    Mode 2 — AI Assistant:
+      Free-tier warning banner (shown once per session)
+      Story Bible tagging reminder
+      "Not configured" state (no API key) → link to Settings
+      Chat: user messages (primary bubbles) + assistant (bordered)
+      "Thinking..." indicator with spinner
+      Message input (q-input textarea) + Send button (round, primary)
 
-=== Dialogs ===
-- Delete Scene Dialog: confirmation + "Cancel"/"Delete" (negative)
-- ExportDialog (see component below)
-- Restore Version Dialog: version info + password input + "Restore"
+--- DIALOGS ---
+  Delete Scene: confirmation + Cancel/Delete (red)
+  ExportDialog: scene selection + export
+  Restore Version: password input + content preview + Restore
 
-3.6 STORY BIBLE PAGE
-File: /frontend/src/pages/StoryBiblePage.vue (740 lines)
+------- 6.6 STORY BIBLE PAGE -------
+File: src/pages/StoryBiblePage.vue (740 lines)
 URL: /projects/:id/story-bible
 Auth: required
 
-Layout: Three tabs using q-tabs + q-tab-panels
+Layout: wda-page with q-tabs + q-tab-panels (3 tabs)
 
-=== Tab 1: Characters (icon="people", label="Characters") ===
-- View toggle: q-btn-toggle with grid_view / list icons
-- "Add Character" button (primary, icon="add")
-- States: loading (q-spinner), error (icon + message + retry), empty (icon + "No characters yet")
-- Grid view: EntityCard components (name, description, edit/delete context menu)
-- List view: inline rows with name, description, edit pencil icon, delete trash icon (red)
-- EntityFormDialog for add/edit
+--- TAB 1: Characters (icon=people) ---
+  View toggle: q-btn-toggle grid_view / list icons
+  "Add Character" button (primary, icon=add)
+  Grid view: EntityCard components (name, desc, edit/delete)
+  List view: inline rows (name, desc, edit pencil, delete trash)
+  EntityFormDialog for add/edit
 
-=== Tab 2: Places (icon="place", label="Places") ===
-- View toggle: q-btn-toggle with grid_view / list icons
-- "Add Place" button (primary, icon="add")
-- Same states as Characters
-- Grid/list views same as Characters
-- EntityFormDialog for add/edit
+--- TAB 2: Places (icon=place) ---
+  Same structure as Characters tab
+  EntityFormDialog for add/edit
 
-=== Tab 3: Timeline (icon="timeline", label="Timeline") ===
-- "Add Event" button (primary, icon="add")
-- States: loading, error, empty
-- Drag-and-drop reorderable timeline items (SortableJS):
-  - Order number badge (circular, primary color)
-  - Event title (heading font)
-  - Description text (2-line clamp)
-  - Drag handle icon
-  - Context menu (more_vert) -> "Edit" / "Delete"
+--- TAB 3: Timeline (icon=timeline) ---
+  "Add Event" button (primary, icon=add)
+  SortableJS drag-and-drop reorder
+  Each event: order badge (circle, primary), title, desc (2-line clamp)
+  Context menu → Edit / Delete
 
-=== Dialogs ===
-- EntityFormDialog (reused for Characters & Places):
-  - Dynamic title: "Add Character" / "Edit Character" / "Add Place" / "Edit Place"
-  - Name q-input (required, outlined, validation)
-  - Description q-textarea (optional, outlined)
-  - Error text + "Cancel"/"Save" buttons
-- Timeline Event Dialog (inline, not component):
-  - Title q-input + Description textarea + "Cancel"/"Save"
-- Delete Confirmation Dialog:
-  - Type-specific label ("Delete Character" / "Delete Place" / "Delete Timeline Event")
-  - Entity name display
-  - "Cancel" (flat) + "Delete" (negative/red)
+--- DIALOGS ---
+  EntityFormDialog: dynamic title ("Add/Edit Character/Place")
+    Name q-input (required, outlined, validation)
+    Description q-textarea (optional)
+    Error text + Cancel/Save
+  Timeline Event dialog (inline):
+    Title input + Description textarea + Cancel/Save
+  Delete Confirmation: type-specific label + name + Cancel/Delete (red)
 
-3.7 STATISTICS PAGE
-File: /frontend/src/pages/StatisticsPage.vue (360 lines)
+STATES: loading (q-spinner), error (icon + retry), empty (icon + message)
+
+------- 6.7 STATISTICS PAGE -------
+File: src/pages/StatisticsPage.vue (360 lines)
 URL: /projects/:id/statistics
 Auth: required
 
-Layout: Top bar + summary cards + chart + scene stats
+Layout: wda-page
 
-Top bar:
-- "Back" button (icon="arrow_back")
-- Dark mode toggle
-- Title: "Writing Statistics"
-- Subtitle: "Track your progress and stay motivated"
+TOP BAR:
+  Back button (arrow_back)
+  Dark mode toggle
+  Title: "Writing Statistics"
+  Subtitle: "Track your progress and stay motivated"
 
-States:
-- Loading: centered q-spinner
-- Error: error message + "Retry" button
+4 SUMMARY STAT CARDS (grid):
+  1. Total Words (icon=article, large number)
+  2. Total Scenes (icon=edit_note)
+  3. Writing Streak (icon=local_fire_department, orange if >0)
+  4. Days Written (icon=calendar_month)
 
-=== 4 Summary Stat Cards ===
-1. Total Words (q-card, icon="article", large number)
-2. Total Scenes (q-card, icon="edit_note")
-3. Writing Streak (q-card, icon="local_fire_department", orange if > 0)
-4. Days Written (q-card, icon="calendar_month")
+TODAY'S PROGRESS (conditional — only if word goal enabled):
+  Goal reached: check_circle + celebratory text
+  Or: "Goal: X words/day" + linear progress bar + percentage
+  "Change goal or turn off in Settings" link
 
-=== Today's Progress Section (conditionally shown when word goal enabled) ===
-- Goal reached: check_circle icon + celebratory text
-- Or: "Goal: X words/day" label
-- Linear progress bar (q-linear-progress) with percentage label
-- "Change goal or turn off in Settings" link
+CHART: Words per Day bar chart (Chart.js)
+  Empty: placeholder with "No data yet"
+  Footnote: "Dates shown in UTC"
 
-=== Words per Day Chart ===
-- Chart.js bar chart (vue-chartjs <Bar> component)
-- Empty state: chart placeholder with "No data yet" + chart icon
-- Footnote: "Dates shown in UTC"
+SCENE STATS:
+  Longest scene: title (link) + word count
+  Shortest scene: title (link) + word count
 
-=== Scene Stats ===
-- Longest scene card: title (link -> write page at that scene) + word count
-- Shortest scene card: title (link -> write page at that scene) + word count
+STATES: loading (spinner), error (message + retry)
 
-3.8 SETTINGS PAGE
-File: /frontend/src/pages/SettingsPage.vue (538 lines)
+------- 6.8 SETTINGS PAGE -------
+File: src/pages/SettingsPage.vue (538 lines)
 URL: /settings
 Auth: required
 
-Layout: Top bar + two settings sections
+Layout: wda-page
 
-Top bar:
-- "Back" button (icon="arrow_back")
-- Dark mode toggle
-- Title: "Settings"
-- Subtitle: "Configure your writing experience"
+TOP BAR:
+  Back button (arrow_back)
+  Dark mode toggle
+  Title: "Settings"
+  Subtitle: "Configure your writing experience"
 
-=== Section 1: AI Assistant Settings ===
-- Explanation: text about free-tier vs custom API key
-- Three UI states for API key field:
+--- SECTION 1: AI ASSISTANT ---
+  Explanation text about free-tier vs custom API key
 
-State A — Empty (no key saved):
-  - API key q-input (type password, with visibility toggle icon)
-  - "Paid tier" checkbox (q-checkbox)
-  - "Save Key" button (primary)
-  - "Re-test connection" button (flat, disabled state)
+  3 UI STATES for API key field:
+    A) Empty: password input + visibility toggle + "Paid tier" checkbox + "Save Key" button
+    B) Locked: masked dots + last 4 chars + lock icon + Change/Remove buttons
+    C) Editing: unlocked input + Save/Cancel buttons
 
-State B — Locked (key saved, masked):
-  - Masked display: dots + last 4 characters
-  - Lock icon
-  - Visibility toggle (shows full key temporarily)
-  - "Paid tier" checkbox + "Save" button (shown when changed)
-  - "Change Key" button + "Remove Key" button (negative)
-  - "Re-test connection" button
+  Connection status banner (color-coded):
+    "testing" → grey + spinner
+    "ok" → green
+    "quota_exceeded" → warning yellow
+    "invalid_key" → red
+    "not_configured" → grey
 
-State C — Editing (key being changed):
-  - Key input with lock_open icon
-  - "Paid tier" checkbox
-  - "Save Key" (primary) + "Cancel" buttons
-  - "Re-test connection" button
+  Remove API Key Dialog: confirmation + Cancel/Remove (red)
 
-Connection status banner (color-coded):
-  - "testing" -> grey, with spinner
-  - "ok" -> green, shows "Using your custom key" or "Using default free key"
-  - "quota_exceeded" -> warning yellow
-  - "invalid_key" -> red
-  - "not_configured" -> grey
+--- SECTION 2: WRITING GOAL ---
+  q-toggle: "Show daily word count goal"
+  q-input (number, 1-10000): daily word goal (shown when toggle on)
+  Summary: "Goal: X words/day" or "Goal tracking is off"
+  "Save" button (primary)
 
-Remove API Key Dialog: confirmation + "Cancel"/"Remove" (negative)
+--- SECTION 3: AI STUDIO LINK ---
+  Info card with link to https://aistudio.google.com/app/apikey
+  Note about getting a free API key
 
-=== Section 2: Writing Goal ===
-- q-toggle: "Show daily word count goal"
-- q-input (number, 1-10000): daily word goal (shown only when toggle is on)
-- Summary: "Goal: X words/day" or "Goal tracking is off"
-- "Save" button (primary)
-- Error/success messages
-
-3.9 404 PAGE
-File: /frontend/src/pages/ErrorNotFound.vue
+------- 6.9 404 PAGE -------
+File: src/pages/ErrorNotFound.vue
 URL: any unmatched route
 
-UI Elements:
-- Full-page blue background (primary color)
-- "404" in massive font (30vh)
-- "Oops. Nothing here..." text
-- "Go Home" button (white, -> /)
-
-3.10 LEGACY PAGES (NOT USED)
-- IndexPage.vue: Quasar logo + "Go to Second Page" button (not in routing)
-- SecondPage.vue: "Back to Index" button (not in routing)
-- MainLayout.vue: unused boilerplate with q-header, q-drawer, EssentialLink items
+Full-page centered:
+  "404" (massive: 30vh font, primary color bg)
+  "Oops. Nothing here..."
+  "Go Home" button (white, → /)
 
 ================================================================================
-4. REUSABLE COMPONENTS
+7. ALL REUSABLE COMPONENTS
 ================================================================================
 
-4.1 EDITOR TOOLBAR
-File: /frontend/src/components/EditorToolbar.vue (246 lines)
+--- 7.1 EDITOR TOOLBAR ---
+File: src/components/EditorToolbar.vue (246 lines)
 
-UI Elements:
-- Bold button (format_bold icon, Ctrl+B, active state colored)
-- Italic button (format_italic icon, Ctrl+I)
-- Underline button (format_underline icon, Ctrl+U)
-- Highlight button (highlight icon, toggles text highlight)
-- H1, H2, H3 heading buttons
-- Scene Break button (horizontal_rule icon, inserts <hr>)
-- Blockquote button (format_quote icon)
-- Undo button (undo icon, Ctrl+Z)
-- Redo button (redo icon, Ctrl+Shift+Z)
-- Font Family dropdown (q-select): Serif, Sans-serif, Monospace
-- Font Size toggle (q-btn-toggle): S (0.9rem) / M (1.1rem) / L (1.3rem) / XL (1.5rem)
-- Find & Replace toggle button (find_replace icon, Ctrl+F)
-- Word count display + reading time: "X words - ~Y min read"
+Toolbar buttons (inline flex row, wrap):
+  Bold (format_bold, Ctrl+B, active highlighted)
+  Italic (format_italic, Ctrl+I)
+  Underline (format_underline, Ctrl+U)
+  Highlight (highlight icon, toggles #FFD700 bg)
+  H1 / H2 / H3 heading buttons
+  Scene Break (horizontal_rule, inserts <hr>)
+  Blockquote (format_quote)
+  Undo (undo, Ctrl+Z)
+  Redo (redo, Ctrl+Shift+Z)
+  Font Family (q-select dropdown): Serif / Sans-serif / Monospace
+  Font Size (q-btn-toggle): S(0.9) / M(1.1) / L(1.3) / XL(1.5)
+  Find & Replace toggle (find_replace, Ctrl+F)
+  Word count: "X words — ~Y min read"
 
-4.2 RICH TEXT EDITOR
-File: /frontend/src/components/RichTextEditor.vue (193 lines)
+Props: editor (TipTap editor instance)
 
-Wrapper around TipTap Editor instance with:
-- Extensions: StarterKit, Underline, CharacterCount, Placeholder, TextStyle,
-  FontFamily, Highlight (single color: #FFD700), FindReplaceExtension (custom)
-- Custom StoryBibleAutocomplete extension
-- Content migration: converts plain text markdown markers to HTML on init
-- Dynamic styling: font size/family via CSS custom properties on editor div
-- Output: emits 'update' event with HTML content and word count
-- Props: modelValue (HTML content), fontFamily, fontSize
-- Methods: getEditor() for parent access
+--- 7.2 RICH TEXT EDITOR ---
+File: src/components/RichTextEditor.vue (193 lines)
 
-4.3 FIND & REPLACE BAR
-File: /frontend/src/components/FindReplaceBar.vue (307 lines)
+Wrapper around TipTap Editor:
 
-UI Elements:
-- Find input (q-input, outlined, dense, min 2 chars to activate)
-- Match counter: "N of M" or "No results"
-- Previous/Next nav buttons (keyboard_arrow_up/down icons)
-- Case-sensitive toggle (q-checkbox, "Aa" label)
-- Replace row (conditionally shown):
-  - Replace input + "Replace" button + "All" button
-  - Replace message (success feedback, auto-clears after 3s)
-- Close button (close icon, Escape key handler)
-- Props: editor (TipTap instance)
+Extensions used:
+  StarterKit (w/ underline disabled)
+  Underline (explicitly registered)
+  CharacterCount
+  Placeholder
+  TextStyle
+  FontFamily
+  Highlight (single color: #FFD700)
+  FindReplaceExtension (custom, see extensions/)
+  StoryBibleAutocomplete (custom, see extensions/)
 
-4.4 EXPORT DIALOG
-File: /frontend/src/components/ExportDialog.vue (125 lines)
+Features:
+  Content migration: plain text markdown → HTML on init
+  Dynamic styling: font-size + font-family via CSS custom properties
+  Output: emits 'update' with { html, wordCount }
+  Props: modelValue (HTML), fontFamily, fontSize
+  Methods: getEditor() for parent access
 
-UI Elements:
-- Header: "Export to EPUB" + close (icon button)
-- Project title display
-- Scene selection controls:
-  - "Select All" / "Deselect All" buttons (flat, small)
-  - "N / M selected" count label
-  - Scrollable list (q-scroll-area, max height):
-    - q-checkbox per scene with title + "Scene N" label
-- Loading state: inline spinner
-- Error message area (red text)
-- Actions: "Cancel" (flat) + "Export" (primary, icon="download")
-- On export: POST to /api/projects/:id/export/epub/, downloads response as .epub file
+--- 7.3 FIND & REPLACE BAR ---
+File: src/components/FindReplaceBar.vue (307 lines)
 
-4.5 ENTITY CARD
-File: /frontend/src/components/EntityCard.vue (65 lines)
+UI:
+  Find input (q-input outlined dense, min 2 chars)
+  Match counter: "N of M" or "No results"
+  Prev/Next nav (keyboard_arrow_up/down)
+  Case-sensitive toggle (q-checkbox, "Aa")
+  Replace row (conditional):
+    Replace input + "Replace" button + "All" button
+    Success message (auto-clears 3s)
+  Close button (close icon, Escape key)
 
-UI Elements:
-- q-card with hover shadow effect (wda-card class)
-- Entity name (heading font, ellipsis overflow, line-clamp 1)
-- Description (3-line clamp, "No description" grey fallback)
-- Context menu (more_vert icon button) -> "Edit" + "Delete" (red)
-- Props: entity (object), entityType ("character" or "place")
+Props: editor (TipTap instance)
 
-4.6 ENTITY FORM DIALOG
-File: /frontend/src/components/EntityFormDialog.vue (86 lines)
+--- 7.4 EXPORT DIALOG ---
+File: src/components/ExportDialog.vue (125 lines)
 
-UI Elements:
-- Dynamic title: "Add [EntityLabel]" or "Edit [EntityLabel]"
-- Name q-input (required, outlined, validation="Must have a name")
-- Description q-textarea (optional, outlined, rows=4)
-- Error text display
-- Actions: "Cancel" (flat) + "Save" (primary)
-- Props: entity (null for add), entityType ("character"/"place"), visible (model)
+UI:
+  Header: "Export to EPUB" + close button
+  Project title display
+  Scene selection:
+    "Select All" / "Deselect All" (flat small)
+    "N / M selected" label
+    Scrollable list (q-scroll-area): q-checkbox per scene
+  Loading: inline spinner
+  Error: red text
+  Actions: Cancel (flat) + Export (primary, download icon)
 
-4.7 ESSENTIAL LINK (LEGACY/UNUSED)
-File: /frontend/src/components/EssentialLink.vue
-- Simple link item with icon, title, caption, href (used in original unused MainLayout)
+Props (v-model): modelValue (boolean)
+Props: projectId, projectTitle, scenes (array)
 
-================================================================================
-5. PROSEMIRROR EXTENSIONS
-================================================================================
+--- 7.5 ENTITY CARD ---
+File: src/components/EntityCard.vue (65 lines)
 
-5.1 FIND/REPLACE PLUGIN
-File: /frontend/src/components/extensions/findReplacePlugin.js (43 lines)
-- Creates ProseMirror decorations for search results
-- Yellow highlight (#FFFF8F) for matches, orange (#FF8C00) for current match
-- Exports FindReplaceExtension (TipTap Extension) and findReplaceKey (PluginKey)
-- Controlled via findReplaceKey metadata in ProseMirror transactions
+Grid card for Story Bible entities:
+  q-card with wda-card class
+  Name (Playfair Display, ellipsis, 1-line clamp)
+  Description (3-line clamp, "No description" grey fallback)
+  Context menu (more_vert) → Edit + Delete (red)
 
-5.2 STORY BIBLE AUTOCOMPLETE
-File: /frontend/src/components/extensions/StoryBibleAutocomplete.js (116 lines)
-- Monitors typing, detects entity names from props (characters, places, events)
-- Shows ghost-text autocomplete suggestion (italic, semi-transparent text inline)
-- Accepts suggestion via Tab or ArrowRight key
-- Props passed via editor component (storyBibleEntities)
+Props: entity (object), entityType ("character" / "place")
 
-================================================================================
-6. PINIA STORES
-================================================================================
+--- 7.6 ENTITY FORM DIALOG ---
+File: src/components/EntityFormDialog.vue (86 lines)
 
-auth.js:
-  State: user, loading
-  Getters: isAuthenticated, hasGeminiKey, geminiApiKeyPreview, isPaidTier,
-           dailyWordGoal, showWordGoal
-  Actions: login(), register(), logout(), fetchCurrentUser(), updateProfile(),
-           testKey()
+Dialog for add/edit Story Bible entities:
+  Dynamic title: "Add [EntityType]" / "Edit [EntityType]"
+  Name q-input (required, outlined, validation="Must have a name")
+  Description q-textarea (optional, outlined, 4 rows)
+  Error text display
+  Actions: Cancel (flat) + Save (primary)
 
-projects.js:
-  State: projects[], loading, error
-  Actions: fetchProjects(), fetchProject(id), createProject(title),
-           renameProject(id, title), deleteProject(id)
+Props: entity (null=add), entityType, modelValue (visible boolean)
+Emits: save, update:modelValue
 
-scenes.js:
-  State: scenes[], loading, error, activeSceneId, saveStatus
-  Actions: fetchScenes(), createScene(), deleteScene(id), reorderScenes(order),
-           updateSceneContent(id, content), updateSceneMeta(id, data),
-           setActiveScene(id)
+--- 7.7 SEARCH FULL PANEL ---
+File: src/components/SearchFullPanel.vue (227 lines)
 
-sceneVersions.js:
-  State: versions[], loading, hasMore, restoring, restoreError
-  Actions: fetchVersions(sceneId), loadMoreVersions(), restoreVersion(verId, password),
-           clearRestoreError()
+Full search results view shown in dialog/panel:
+  Header: search icon + "Results for 'query'" + match/scene count + close
+  Refine search input (within panel)
+  Results grouped by scene:
+    Scene header (order #, title, match badge, "edit" button)
+    Snippets with highlighted matches
+  Load more button (paginated)
+  States: loading (spinner + "Searching..."), empty ("No results" + hint)
 
-characters.js:
-  State: characters[], loading, error
-  Actions: fetchCharacters(), createCharacter(), updateCharacter(id, data),
-           deleteCharacter(id)
+Props: searchStore, searchQuery, currentProjectId
+Emits: update:search-query, search-input, navigate, close
 
-places.js:
-  State: places[], loading, error
-  Actions: fetchPlaces(), createPlace(), updatePlace(id, data),
-           deletePlace(id)
+--- 7.8 APP SIDEBAR ---
+(Already documented in Section 5)
 
-timelineEvents.js:
-  State: timelineEvents[], loading, error
-  Actions: fetchTimelineEvents(), createTimelineEvent(),
-           updateTimelineEvent(id, data), deleteTimelineEvent(id),
-           reorderTimelineEvents(order)
+--- 7.9 APP NAVBAR ---
+(Already documented in Section 4)
 
-conversations.js:
-  State: conversation, messages[], loading, sending, error, isFreeTier
-  Actions: fetchOrCreateConversation(projectId, sceneId),
-           fetchMessages(convId), sendMessage(convId, content), reset()
-
-statistics.js:
-  State: stats (null), loading, error
-  Actions: fetchStatistics(projectId)
+--- 7.10 ESSENTIAL LINK ---
+File: src/components/EssentialLink.vue
+LEGACY/UNUSED — not part of the active UI
 
 ================================================================================
-7. BACKEND API ENDPOINTS
+8. PROSEMIRROR EXTENSIONS
 ================================================================================
 
-Auth endpoints:
-  POST /api/auth/login/           — login, start Django session
-  POST /api/auth/logout/          — end session
-  POST /api/auth/register/        — create user + auto-login
-  GET  /api/auth/user/            — current user + profile info
-  GET  /api/auth/profile/         — get profile
-  PATCH /api/auth/profile/        — update profile (API key, paid tier, goals)
-  POST /api/auth/profile/test-key/ — test Gemini key connectivity
+--- 8.1 FIND/REPLACE PLUGIN ---
+File: src/components/extensions/findReplacePlugin.js (43 lines)
 
-Project endpoints (owner-scoped):
-  GET    /api/projects/                        — list projects
-  POST   /api/projects/                        — create project
-  GET    /api/projects/:id/                    — project detail
-  PUT    /api/projects/:id/                    — update project
-  PATCH  /api/projects/:id/                    — partial update
-  DELETE /api/projects/:id/                    — delete project
-  POST   /api/projects/:id/export/epub/        — export EPUB
-  GET    /api/projects/:id/statistics/         — stats (words, scenes, streak, daily)
+Custom ProseMirror plugin:
+  Yellow highlight (#FFFF8F) for search matches
+  Orange (#FF8C00) for current match
+  Exported as FindReplaceExtension (TipTap Extension)
+  Controlled via findReplaceKey PluginKey
 
-Nested resources:
-  GET/POST    /api/projects/:id/characters/            — list / create
-  PUT/PATCH/DELETE /api/projects/:id/characters/:char_id/  — CRUD
-  GET/POST    /api/projects/:id/places/                — list / create
-  PUT/PATCH/DELETE /api/projects/:id/places/:place_id/ — CRUD
-  GET/POST    /api/projects/:id/timeline-events/               — list / create
-  PUT/PATCH/DELETE /api/projects/:id/timeline-events/:event_id/ — CRUD
-  GET/POST    /api/projects/:id/scenes/                   — list / create
-  PUT/PATCH/DELETE /api/projects/:id/scenes/:scene_id/    — CRUD (auto-versioning)
-  GET         /api/projects/:id/scenes/:scene_id/versions/     — version history (paginated)
-  POST /api/projects/:id/scenes/:scene_id/versions/:ver_id/restore/ — restore (needs password)
-  GET/POST /api/projects/:id/conversations/                         — list / create
-  GET /api/projects/:id/conversations/:conv_id/messages/            — list messages
-  POST /api/projects/:id/conversations/:conv_id/messages/           — send message + AI reply
+--- 8.2 STORY BIBLE AUTOCOMPLETE ---
+File: src/components/extensions/StoryBibleAutocomplete.js (116 lines)
+
+Custom TipTap extension:
+  Monitors typing, detects entity names from props
+  Shows ghost-text autocomplete suggestion (italic, semi-transparent, inline)
+  Accept via Tab or ArrowRight key
+  Props: storyBibleEntities (array of character/place/event names)
 
 ================================================================================
-8. CSS / THEMING
+9. ALL PINIA STORES — COMPLETE STATE & ACTIONS
 ================================================================================
 
-File: /frontend/src/css/app.scss (514 lines)
-File: /frontend/src/css/quasar.variables.scss (25 lines)
+Each store uses Composition API style (defineStore with setup function).
 
-Brand Colors:
-  Primary: #1B3A6B (light mode) / #F5A623 (dark mode)
-  Secondary: #C9A84C
-  Accent: #C9A84C
-  Dark: #1C1C1E
-  Positive: #2D6A4F
-  Negative: #C75D3A
-  Info: #1B3A6B
-  Warning: #C9A84C
+--- 9.1 AUTH STORE (auth.js) ---
+State: user (object|null), loading (boolean)
+Getters: isAuthenticated, hasGeminiKey, geminiApiKeyPreview, isPaidTier,
+         dailyWordGoal, showWordGoal
+Actions:
+  login(username, password)          → POST /api/auth/login/
+  register(username, email, password) → POST /api/auth/register/
+  logout()                           → POST /api/auth/logout/
+  fetchCurrentUser()                 → GET /api/auth/user/
+  updateProfile(payload)             → PATCH /api/auth/profile/
+  testKey()                          → POST /api/auth/profile/test-key/
 
-Fonts:
-  Headings: "Playfair Display" (serif)
-  UI: "Inter" (sans-serif)
-  Body: "Lora" (serif)
-  Editor: "Georgia" (serif)
+--- 9.2 PROJECTS STORE (projects.js) ---
+State: projects[], loading, error
+Actions:
+  fetchProjects()                     → GET /api/projects/
+  fetchProject(id)                    → GET /api/projects/:id/
+  createProject(title)                → POST /api/projects/
+  renameProject(id, title)            → PATCH /api/projects/:id/
+  deleteProject(id)                   → DELETE /api/projects/:id/
 
-Custom CSS classes:
-  .wda-card — card with border, bg, shadow, hover lift
-  .wda-shadow — subtle box-shadow
-  .wda-shadow-md — medium box-shadow
-  .wda-gradient — primary gradient background
-  .wda-card-accent-[1-5] — 5 accent border colors for project cards
+--- 9.3 SCENES STORE (scenes.js) ---
+State: scenes[], loading, error, activeSceneId, saveStatus
+Actions:
+  fetchScenes(projectId)              → GET /api/projects/:pid/scenes/
+  createScene(projectId)              → POST /api/projects/:pid/scenes/
+  deleteScene(projectId, id)          → DELETE /api/projects/:pid/scenes/:id/
+  reorderScenes(projectId, order)     → PATCH bulk reorder
+  updateSceneContent(projectId, id, content) → PATCH scene content
+  updateSceneMeta(projectId, id, data) → PATCH scene metadata
+  setActiveScene(id)
 
-Dark mode: Full support via body.body--dark selectors, toggled by Quasar $q.dark
+--- 9.4 SCENE VERSIONS STORE (sceneVersions.js) ---
+State: versions[], loading, hasMore, restoring, restoreError
+Actions:
+  fetchVersions(sceneId)              → GET .../versions/
+  loadMoreVersions()                  → paginated load
+  restoreVersion(verId, password)     → POST .../versions/:vid/restore/
+  clearRestoreError()
+
+--- 9.5 CHARACTERS STORE (characters.js) ---
+State: characters[], loading, error
+Actions:
+  fetchCharacters(projectId)          → GET /api/projects/:pid/characters/
+  createCharacter(projectId, data)    → POST /api/projects/:pid/characters/
+  updateCharacter(projectId, id, data)→ PATCH /api/projects/:pid/characters/:cid/
+  deleteCharacter(projectId, id)      → DELETE /api/projects/:pid/characters/:cid/
+
+--- 9.6 PLACES STORE (places.js) ---
+State: places[], loading, error
+Actions:
+  fetchPlaces(projectId)              → GET /api/projects/:pid/places/
+  createPlace(projectId, data)        → POST /api/projects/:pid/places/
+  updatePlace(projectId, id, data)    → PATCH /api/projects/:pid/places/:pid/
+  deletePlace(projectId, id)          → DELETE /api/projects/:pid/places/:pid/
+
+--- 9.7 TIMELINE EVENTS STORE (timelineEvents.js) ---
+State: timelineEvents[], loading, error
+Actions:
+  fetchTimelineEvents(projectId)      → GET /api/projects/:pid/timeline-events/
+  createTimelineEvent(projectId, data) → POST /api/projects/:pid/timeline-events/
+  updateTimelineEvent(projectId, id, data) → PATCH
+  deleteTimelineEvent(projectId, id)  → DELETE
+  reorderTimelineEvents(projectId, order) → PATCH bulk reorder
+
+--- 9.8 GROUPS STORE (groups.js) ---
+State: groups[], loading, error
+Actions: fetchGroups, createGroup, updateGroup, deleteGroup
+CRUD for /api/projects/:id/groups/  ← Story Bible groups/factions
+
+--- 9.9 ITEMS STORE (items.js) ---
+State: items[], loading, error
+Actions: fetchItems, createItem, updateItem, deleteItem
+CRUD for /api/projects/:id/items/  ← Story Bible items/objects
+
+--- 9.10 LORE STORE (lore.js) ---
+State: lore[], loading, error
+Actions: fetchLore, createLore, updateLore, deleteLore, clearError
+CRUD for /api/projects/:id/lore/  ← Story Bible lore/worldbuilding
+
+--- 9.11 NOTES STORE (notes.js) ---
+State: notes[], loading, saving, error
+Actions: fetchNotes(projectId, sceneId), createNote, updateNote, deleteNote, clearNotes
+CRUD for /api/projects/:pid/scenes/:sid/notes/  ← scene-specific notes
+
+--- 9.12 CONVERSATIONS STORE (conversations.js) ---
+State: conversation, messages[], loading, sending, error, isFreeTier
+Actions:
+  fetchOrCreateConversation(projectId, sceneId) → GET/POST conversation
+  fetchMessages(convId)                         → GET messages
+  sendMessage(convId, content)                  → POST message + AI reply
+  reset()
+
+--- 9.13 STATISTICS STORE (statistics.js) ---
+State: stats (null), loading, error
+Actions: fetchStatistics(projectId) → GET /api/projects/:pid/statistics/
+
+--- 9.14 SEARCH STORE (search.js) ---
+State: query, results[], loading, error, totalMatches, totalScenes,
+       hasMore, showDropdown, showFullPanel, lastQuery, currentLimit, currentOffset
+Actions:
+  debouncedSearch(projectId, q)  ← 400ms debounce, GET /api/projects/:pid/search/
+  loadMore(projectId)            ← paginated
+  clearSearch()
+  openFullPanel() / closeFullPanel()
 
 ================================================================================
-9. ARCHITECTURAL NOTES
+10. BACKEND API ENDPOINTS
 ================================================================================
 
-Authentication: Django session-based (sessionid cookie), CSRF via csrftoken cookie.
-Axios reads csrftoken cookie and sends as X-CSRFToken header on mutating requests.
+Base URL: /api/ (via Django REST Framework)
 
-Dark mode: Persisted to localStorage('wda_dark_mode'), restored on boot
-(boot/darkmode.js). App.vue watches $q.dark changes.
+AUTH:
+  POST   /api/auth/login/              — Django session login
+  POST   /api/auth/logout/             — session logout
+  POST   /api/auth/register/            — create user + auto-login
+  GET    /api/auth/user/                — current user + profile
+  GET    /api/auth/profile/             — user profile detail
+  PATCH  /api/auth/profile/            — update profile (key, tier, goals)
+  POST   /api/auth/profile/test-key/   — test Gemini key
 
-Editor auto-save: Scene content auto-saves 2.5s after last edit.
-Scene tags auto-save on change.
+PROJECTS (owner-scoped):
+  GET    /api/projects/                          — list
+  POST   /api/projects/                          — create
+  GET    /api/projects/:id/                      — detail
+  PUT    /api/projects/:id/                      — full update
+  PATCH  /api/projects/:id/                      — partial update
+  DELETE /api/projects/:id/                      — delete
+  POST   /api/projects/:id/export/epub/          — export EPUB
+  GET    /api/projects/:id/statistics/           — words/scenes/streak/daily
+  GET    /api/projects/:id/search/?q=&limit=&offset=  — full-text search
 
-Auto-tagging: Editor scans scene content every 3s and auto-selects
-character/place/timeline tags matching entity names found in content.
+NESTED RESOURCES (all scoped to project):
+  Characters:  GET/POST /api/projects/:id/characters/
+               GET/PUT/PATCH/DELETE /api/projects/:id/characters/:char_id/
+  Places:      GET/POST /api/projects/:id/places/
+               GET/PUT/PATCH/DELETE /api/projects/:id/places/:place_id/
+  Timeline:    GET/POST /api/projects/:id/timeline-events/
+               GET/PUT/PATCH/DELETE /api/projects/:id/timeline-events/:event_id/
+  Scenes:      GET/POST /api/projects/:id/scenes/
+               GET/PUT/PATCH/DELETE /api/projects/:id/scenes/:scene_id/
+  Versions:    GET /api/projects/:id/scenes/:sid/versions/
+               POST /api/projects/:id/scenes/:sid/versions/:vid/restore/
+  Conversations: GET/POST /api/projects/:id/conversations/
+  Messages:    GET /api/projects/:id/conversations/:cid/messages/
+               POST /api/projects/:id/conversations/:cid/messages/
+  Groups:      GET/POST /api/projects/:id/groups/
+               GET/PUT/PATCH/DELETE /api/projects/:id/groups/:gid/
+  Items:       GET/POST /api/projects/:id/items/
+               GET/PUT/PATCH/DELETE /api/projects/:id/items/:iid/
+  Lore:        GET/POST /api/projects/:id/lore/
+               GET/PUT/PATCH/DELETE /api/projects/:id/lore/:lid/
+  Notes:       GET/POST /api/projects/:id/scenes/:sid/notes/
+               GET/PUT/PATCH/DELETE /api/projects/:id/scenes/:sid/notes/:nid/
 
-Version snapshots: Every PATCH to scene content creates a SceneVersion record.
-Restore requires user's password.
-
-AI Assistant: Conversations scoped per-scene. System prompt includes tagged
-Story Bible entities + current scene content. Free-tier warning shown once
-per session (sessionStorage flag).
-
-View mode persistence: Story Bible grid/list preference stored in localStorage.
-
-Font settings: Font family + size stored in localStorage, restored on editor mount.
-
-Fullscreen mode: WritePage toggles fullscreen, hiding the scene board panel.
-
-Layout approach: Each page defines its own <q-layout> — no shared layout wrapper
-(original MainLayout.vue is unused).
-
-EPUB export: Generates .epub via backend EbookLib, returns as downloadable file.
-User selects which scenes to include.
+AUTHENTICATION: Django session-based (sessionid cookie + csrftoken cookie)
+  All POST/PUT/PATCH/DELETE require X-CSRFToken header from csrftoken cookie
+  CORS: credentials allowed, specific origin https://writers-draft-app.vercel.app
 
 ================================================================================
-END OF UI DOCUMENTATION
+11. CSS THEMING SYSTEM
+================================================================================
+
+File: src/css/app.scss (2546 lines — ALL layout, component, and page styles)
+File: src/css/quasar.variables.scss (25 lines — Quasar build-time SCSS vars)
+
+--- CSS CUSTOM PROPERTIES (Light Mode — :root) ---
+
+  --wda-bg: #EDE8DC                    ← page background (warm cream)
+  --wda-surface: #FFFFFF               ← card/surface bg (pure white)
+  --wda-surface-2: #F5F3EF            ← secondary surface (light beige)
+  --wda-primary: #1B2A4A              ← primary actions/links (dark navy)
+  --wda-secondary: #C9A84C            ← accents/highlights (gold)
+  --wda-text: #1B2A4A                 ← primary text (navy)
+  --wda-text-body: #2A2720            ← body text (warm dark)
+  --wda-text-secondary: #4A4440        ← secondary text
+  --wda-text-muted: #7A7365           ← muted/placeholder text
+  --wda-border: #E8E2D9              ← thin borders (warm grey)
+  --wda-border-strong: #D9D3C8        ← strong borders
+  --wda-action: #3B82B5               ← interactive links
+  --wda-shadow: 0 4px 16px rgba(0,0,0,0.06)
+  --wda-shadow-md: 0 8px 24px rgba(0,0,0,0.10)
+  --wda-radius: 12px                  ← card radius
+  --wda-radius-sm: 6px                ← input radius
+  --wda-font-ui: 'Inter', sans-serif
+  --wda-font-heading: 'Playfair Display', serif
+  --wda-font-editor: 'Georgia', serif
+  --wda-font-body: 'Lora', serif
+
+--- CSS CUSTOM PROPERTIES (Dark Mode — body.body--dark) ---
+
+  --wda-bg: #1E1F24                   ← dark page bg
+  --wda-surface: #2A2D33              ← dark card bg
+  --wda-surface-2: #35383F            ← dark secondary surface
+  --wda-primary: #F4A825              ← bright gold
+  --wda-secondary: #F4A825            ← same gold
+  --wda-action: #64B5F6               ← light blue links
+  --wda-text: #F5F5F5                 ← white text
+  --wda-text-body: #E0E0E0            ← light body text
+  --wda-text-secondary: #9AA0A6        ← muted grey
+  --wda-text-muted: #9AA0A6           ← dark muted
+  --wda-border: rgba(255,255,255,.06)
+  --wda-border-strong: rgba(255,255,255,.1)
+  --wda-shadow: 0 8px 24px rgba(0,0,0,.25)
+  --wda-shadow-md: 0 12px 30px rgba(0,0,0,.35)
+
+--- KEY CSS CLASSES ---
+
+.wda-page:                max-width 1200px, centered, padding 32px 40px
+.wda-page--full:          no max-width, no margin
+.wda-card:                surface bg, border, shadow, hover lift effect
+.wda-shadow / .wda-shadow-md
+.auth-page:               min-height 100vh, flex centered, gap 64px
+.auth-form-card:          max-width 400px, padding 40px
+.wda-dashboard-page:      full height flex column
+
+Typography:
+  .wda-page-title         30px, Playfair Display, bold
+  .wda-page-subtitle      14px, Inter, muted
+  .section-title          22px, Playfair Display, semibold
+  .card-title             18px, Playfair Display, semibold
+  .text-description       14px, muted
+  .text-small             12px, muted
+
+Write page specific:
+  .write-page:            flex row, full height, overflow hidden
+  .scene-board:           260px width, border right, bg surface-2
+  .editor-area:           flex 1, overflow hidden, flex column
+  .editor-toolbar:        padding 8px 16px, border bottom, flex wrap
+  .ProseMirror:           font Georgia 1.1rem, line-height 1.8, padding 40px 24px
+                          Dynamic font via --editor-font-family and --editor-font-size
+  .save-status-badge:     small rounded badge with color states
+
+Sidebar/Navbar:
+  .wda-navbar:            64px height, surface bg, border bottom, z-index 2000
+  .wda-sidebar:           220px width, surface bg, border right
+  .wda-nav-item:          42px height, 8px radius, hover/active/disabled states
+
+--- DARK MODE OVERRIDES ---
+  Extensive Quasar component overrides in body.body--dark:
+    q-card, q-field (outlined), q-btn (flat), q-tabs, q-tab, q-menu,
+    q-banner, q-chip, q-badge, q-drawer, q-header, q-linear-progress,
+    dialog, scene-board, chat message code/pre/blockquote
+
+--- THIN SCROLLBARS ---
+  All scrollable elements: 6px width, subtle translucent thumb
+
+--- RESPONSIVE ---
+  ONLY one media query: .auth-brand hidden at ≤768px (hides brand panel on mobile)
+  Everything else is desktop-first with NO responsive breakpoints
+
+================================================================================
+12. DATA FLOW & STATE MANAGEMENT PATTERNS
+================================================================================
+
+Authentication flow:
+  1. App loads → beforeEach route guard checks for csrftoken cookie
+  2. If missing, fetches /api/auth/user/ (which sets the cookie via response)
+  3. If authenticated, authStore.user is populated; if not, redirect to /login
+  4. All mutating requests include X-CSRFToken header from cookie (axios interceptor)
+  5. 401/403 responses → auto-redirect to /login (axios response interceptor)
+
+Editor auto-save:
+  1. User stops typing for 2.5s
+  2. saveSceneContent() called → updates scene content via PATCH
+  3. saveStatus state updated: "Saving..." → "Saved" → "Ready"
+  4. Auto-tagging runs every 3s: scans ProseMirror content for entity names
+
+Data fetching pattern:
+  - Pages fetch data on mount via stores
+  - Loading/error states displayed while fetching
+  - Entities cached in Pinia stores (no refetch unless explicitly called)
+
+Dialog patterns:
+  - Simple dialogs (confirm delete, etc.): inline in page components
+  - Complex dialogs (EntityFormDialog, ExportDialog): separate components
+  - Global dialog (ExportDialog): rendered in MainAppLayout, triggered via inject
+
+================================================================================
+13. CURRENT RESPONSIVE BEHAVIOR (or lack thereof)
+================================================================================
+
+The app is ENTIRELY desktop-optimized with NO responsive design:
+
+- Fixed widths: sidebar 220px, scene-board 260px, search bar 280px, right panels 240px
+- Page max-width: 1200px with 32px/40px padding
+- Multiple-column grids: project cards, stat cards, action cards, entity grids
+- Horizontal layout: sidebar | navbar+content (no stacking)
+- Write page: side-by-side scene board + editor + drawer
+- Auth pages: brand panel + form side-by-side
+
+Only responsive style: .auth-brand hidden at ≤768px (media query)
+
+Current touch/gesture support: none (SortableJS supports drag but no touch optimizations)
+
+================================================================================
+14. DESIGN PATTERNS & CONVENTIONS
+================================================================================
+
+- All pages self-contained in <q-layout> or standalone
+- No shared layout wrappers for auth pages (Login/Register/404)
+- Consistent top bar pattern: back button + title/subtitle + right actions
+- Consistent state patterns: loading (spinner), error (icon + retry), empty (icon + CTA)
+- Dialog actions: Cancel on left (flat), primary action on right (button)
+- Card hover: translateY(-2px) + enhanced shadow
+- Transitions: 0.2s ease on colors/shadows, 0.15s on transforms
+- Navigation: sidebar + top bar buttons (no nested router-views)
+- Font hierarchy: Playfair for titles/headings, Inter for UI/labels, Lora for body prose
+- Icons: Material Icons (filled style) throughout
+
+================================================================================
+15. MOBILE ADAPTATION CONSIDERATIONS
+================================================================================
+
+For a mobile UI redesign, these are the key challenges:
+
+A) LAYOUT RESTRUCTURING:
+  - Split layouts (sidebar + content, scene-board + editor) need bottom tab nav + stacked screens
+  - Full-width cards/panels instead of fixed-width sidebars
+  - Bottom sheet dialogs instead of modal dialogs
+  - Floating action button pattern for primary actions
+
+B) PAGE-SPECIFIC MOBILE CONSIDERATIONS:
+
+  Dashboard:
+    - Horizontal scroll for project cards (maintain current strip pattern with snap)
+    - Or vertical list with compact cards
+    - Skeleton states need mobile sizing
+
+  Write Page (MOST CRITICAL):
+    - Scene board needs to be a slide-over drawer or bottom sheet
+    - Editor needs full-width with minimal chrome
+    - Formatting toolbar: collapsible or bottom toolbar
+    - Find & Replace: bottom sheet
+    - Right drawer (AI/Version): full-screen overlay
+    - Story Bible tags: collapsible accordion at bottom
+    - Fullscreen mode: hide ALL chrome, swipe to switch scenes
+
+  Story Bible:
+    - Tabs: bottom tab bar or horizontal scrollable pills
+    - Grid cards: single column or 2-column on larger phones
+    - Entity edit dialogs: full-screen modal or bottom sheet
+    - Timeline: swipeable cards with drag handle
+
+  Statistics:
+    - Stat cards: 2x2 grid or horizontal scroll
+    - Chart: full-width with pinch-to-zoom
+    - Scene stats: stacked list
+
+  Settings:
+    - Standard form layout (already works well)
+    - AI key input: full-width masked input
+    - Section grouping: collapsible or single scroll
+
+C) COMPONENT ADAPTATIONS:
+  EntityCard: compact layout without hover effects, tap for context
+  EntityFormDialog: full-screen or bottom sheet
+  ExportDialog: bottom sheet with scene checklist
+  SearchFullPanel: full-screen overlay with sticky header
+
+D) PATTERNS TO PRIORITIZE:
+  - Bottom navigation bar (replace sidebar)
+  - Swipe gestures for scene navigation
+  - Long-press for context menus
+  - Pull-to-refresh for data reload
+  - Bottom sheet for dialogs and menus
+  - Collapsible sections (accordion pattern)
+  - Floating action button for "New" actions
+  - Sticky headers on scrollable lists
+  - Thumb-friendly touch targets (min 44px)
+  - Safe area insets for modern phones
+
+E) COMPLEX FEATURES:
+  AI Assistant: full-screen chat view with back navigation
+  Version History: bottom sheet with timeline or full-screen list
+  Auto-tagging: persists as a background operation, notification on detection
+
+F) CURRENT CONSTRAINTS:
+  - No touch event handling
+  - No responsive viewport meta adjustments
+  - Fixed-width containers throughout
+  - Hover-only interactions (context menus, card effects)
+  - Hash-mode routing (URLs stay within single page)
+  - Router-view nested in layout (no easy page transitions)
+  - Quasar 2 components can handle responsive via grid props but not currently used
+
+================================================================================
+END OF DOCUMENTATION
 ================================================================================

@@ -6,14 +6,19 @@ const api = axios.create({
   withCredentials: true,
 })
 
-function getCsrfToken() {
-  const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]*)/)
-  return match ? decodeURIComponent(match[1]) : null
+let csrfToken = null
+
+export async function fetchCsrfToken() {
+  try {
+    const { data } = await api.get('/auth/csrf/')
+    csrfToken = data.csrfToken
+  } catch {
+    csrfToken = null
+  }
 }
 
 api.interceptors.request.use((config) => {
   if (['post', 'put', 'patch', 'delete'].includes(config.method)) {
-    const csrfToken = getCsrfToken()
     if (csrfToken) {
       config.headers['X-CSRFToken'] = csrfToken
     }
@@ -38,7 +43,8 @@ api.interceptors.response.use(
   }
 )
 
-export default boot(({ app }) => {
+export default boot(async ({ app }) => {
+  await fetchCsrfToken()
   app.config.globalProperties.$axios = axios
   app.config.globalProperties.$api = api
 })
