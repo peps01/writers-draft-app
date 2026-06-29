@@ -753,20 +753,26 @@ def register_view(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    user = User.objects.create_user(username=username, email=email, password=password)
-    login(request, user)
-    return Response(
-        {
-            'id': user.id,
-            'username': user.username,
-            'email': user.email,
-            'has_gemini_key': bool(user.profile.gemini_api_key),
-            'is_paid_tier': user.profile.is_paid_tier,
-            'daily_word_goal': user.profile.daily_word_goal,
-            'show_word_goal': user.profile.show_word_goal,
-        },
-        status=status.HTTP_201_CREATED,
-    )
+    try:
+        user = User.objects.create_user(username=username, email=email, password=password)
+        login(request, user)
+        return Response(
+            {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'has_gemini_key': bool(user.profile.gemini_api_key),
+                'is_paid_tier': user.profile.is_paid_tier,
+                'daily_word_goal': user.profile.daily_word_goal,
+                'show_word_goal': user.profile.show_word_goal,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+    except Exception as e:
+        return Response(
+            {'error': str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
 
 
 @api_view(['POST'])
