@@ -1,0 +1,1 @@
+import{g as e,m as t}from"./index-BPJFpvon.js";var n=e(async()=>{await t().fetchCurrentUser()});export{n as default};

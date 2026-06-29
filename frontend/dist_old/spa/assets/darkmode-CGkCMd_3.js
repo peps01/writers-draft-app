@@ -1,0 +1,1 @@
+import{j as e}from"./index-BPJFpvon.js";var t=()=>{localStorage.getItem(`wda_dark_mode`)===`true`&&e.set(!0)};export{t as default};
