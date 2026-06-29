@@ -17,3 +17,7 @@ COPY . .
 
 EXPOSE 8000
 
+RUN chmod +x bin/start.sh
+
+CMD ["bin/start.sh"]
+
