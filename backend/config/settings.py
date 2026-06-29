@@ -96,7 +96,7 @@ DATABASES = {
 }
 DATABASES['default']['CONN_MAX_AGE'] = 60
 DATABASES['default']['OPTIONS'] = {
-    'connect_timeout': 10,
+    'connect_timeout': 30,
 }
 
 
