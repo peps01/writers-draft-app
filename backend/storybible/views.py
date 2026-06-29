@@ -9,7 +9,10 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 from django.http import FileResponse
+from django.utils.decorators import method_decorator
+from django_ratelimit.core import is_ratelimited
 from rest_framework import viewsets, status
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.pagination import PageNumberPagination
@@ -31,8 +34,37 @@ from .serializers import (
     ConversationSerializer,
     MessageSerializer,
 )
-from .ai_service import get_ai_response, check_contradictions, AIServiceNotConfigured, AIServiceError, resolve_key, GEMINI_MODEL
+from .ai_service import get_ai_response, check_contradictions, AIServiceNotConfigured, AIServiceError, resolve_key, GEMINI_MODEL, call_with_timeout
 from .export import generate_epub
+
+
+def strip_html(html):
+    return re.sub(r'<[^>]+>', ' ', html or '').strip()
+
+
+def extract_snippets(plain_text, query, max_snippets=3, context_chars=80):
+    snippets = []
+    text_lower = plain_text.lower()
+    query_lower = query.lower()
+    start = 0
+    while len(snippets) < max_snippets:
+        idx = text_lower.find(query_lower, start)
+        if idx == -1:
+            break
+        snippet_start = max(0, idx - context_chars)
+        snippet_end = min(len(plain_text), idx + len(query) + context_chars)
+        snippet = plain_text[snippet_start:snippet_end].strip()
+        if snippet_start > 0:
+            snippet = '...' + snippet
+        if snippet_end < len(plain_text):
+            snippet = snippet + '...'
+        snippets.append({
+            'text': snippet,
+            'match_start': idx - snippet_start + (3 if snippet_start > 0 else 0),
+            'match_end': idx - snippet_start + len(query) + (3 if snippet_start > 0 else 0),
+        })
+        start = idx + len(query)
+    return snippets
 
 
 class ProjectViewSet(viewsets.ModelViewSet):
@@ -40,7 +72,9 @@ class ProjectViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return Project.objects.filter(owner=self.request.user)
+        return Project.objects.filter(
+            owner=self.request.user
+        ).select_related('owner')
 
     def perform_create(self, serializer):
         serializer.save(owner=self.request.user)
@@ -154,6 +188,67 @@ class ProjectViewSet(viewsets.ModelViewSet):
             'total_days_written': total_days_written,
         })
 
+    @action(detail=True, methods=['get'], url_path='search')
+    def search(self, request, pk=None):
+        project = self.get_object()
+        query = request.query_params.get('q', '').strip()
+
+        if len(query) < 3:
+            return Response({
+                'query': query,
+                'total_matches': 0,
+                'total_scenes': 0,
+                'results': [],
+                'limit': int(request.query_params.get('limit', 20)),
+                'offset': int(request.query_params.get('offset', 0)),
+                'has_more': False,
+            })
+
+        limit = min(int(request.query_params.get('limit', 20)), 50)
+        offset = int(request.query_params.get('offset', 0))
+
+        scenes = Scene.objects.filter(
+            project=project,
+        ).filter(
+            Q(title__icontains=query) | Q(content__icontains=query)
+        ).order_by('order')
+
+        total_scenes = scenes.count()
+        page = scenes[offset:offset + limit]
+
+        results = []
+        total_matches = 0
+        for scene in page:
+            plain_text = strip_html(scene.content)
+            title_plain = strip_html(scene.title)
+            # Count matches in title and content
+            title_count = title_plain.lower().count(query.lower())
+            content_count = plain_text.lower().count(query.lower())
+            match_count = title_count + content_count
+            total_matches += match_count
+
+            # Get snippets from the combined text
+            searchable_text = title_plain + ' ' + plain_text
+            snippets = extract_snippets(searchable_text, query)
+
+            results.append({
+                'scene_id': scene.id,
+                'scene_title': scene.title or 'Untitled Scene',
+                'scene_order': scene.order,
+                'match_count': match_count,
+                'snippets': snippets,
+            })
+
+        return Response({
+            'query': query,
+            'total_matches': total_matches,
+            'total_scenes': total_scenes,
+            'results': results,
+            'limit': limit,
+            'offset': offset,
+            'has_more': (offset + limit) < total_scenes,
+        })
+
 
 class CharacterViewSet(viewsets.ModelViewSet):
     serializer_class = CharacterSerializer
@@ -252,7 +347,7 @@ class SceneViewSet(viewsets.ModelViewSet):
         return Scene.objects.filter(
             project__owner=self.request.user,
             project_id=self.kwargs['project_pk'],
-        )
+        ).prefetch_related('characters', 'places', 'timeline_events', 'groups', 'items', 'lore')
 
     def perform_create(self, serializer):
         serializer.save(project_id=self.kwargs['project_pk'])
@@ -269,6 +364,12 @@ class SceneViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'], url_path='check-contradictions')
     def check_contradictions(self, request, project_pk=None, pk=None):
+        if is_ratelimited(request, group='check_contradictions', key='user', rate='10/m', method='POST', increment=True):
+            return Response(
+                {'error': 'Too many requests. Please wait a moment before trying again.'},
+                status=429,
+            )
+
         scene = self.get_object()
 
         conversation = Conversation.objects.filter(
@@ -309,8 +410,15 @@ class SceneViewSet(viewsets.ModelViewSet):
 
         serializer = MessageSerializer(assistant_message)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
     @action(detail=True, methods=['post'], url_path='writing-prompt')
     def writing_prompt(self, request, project_pk=None, pk=None):
+        if is_ratelimited(request, group='writing_prompt', key='user', rate='10/m', method='POST', increment=True):
+            return Response(
+                {'error': 'Too many requests. Please wait a moment before trying again.'},
+                status=429,
+            )
+
         scene = self.get_object()
         project = scene.project
 
@@ -417,7 +525,9 @@ class SceneViewSet(viewsets.ModelViewSet):
                 HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
                 HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
             }
-            response = model.generate_content(full_prompt, safety_settings=safety_settings)
+            response = call_with_timeout(
+                lambda: model.generate_content(full_prompt, safety_settings=safety_settings)
+            )
         except Exception as e:
             msg = str(e)
             if 'quota' in msg.lower() or 'resource_exhausted' in msg.lower():
@@ -508,7 +618,7 @@ class ConversationViewSet(viewsets.ModelViewSet):
         qs = Conversation.objects.filter(
             project__owner=self.request.user,
             project_id=self.kwargs['project_pk'],
-        )
+        ).select_related('scene')
         scene_id = self.request.query_params.get('scene')
         if scene_id is not None:
             qs = qs.filter(scene_id=scene_id)
@@ -526,9 +636,15 @@ class MessageViewSet(viewsets.ModelViewSet):
         return Message.objects.filter(
             conversation__project__owner=self.request.user,
             conversation_id=self.kwargs['conversation_pk'],
-        )
+        ).select_related('conversation')
 
     def create(self, request, project_pk=None, conversation_pk=None):
+        if is_ratelimited(request, group='create_message', key='user', rate='20/m', method='POST', increment=True):
+            return Response(
+                {'error': 'Too many requests. Please wait a moment before trying again.'},
+                status=429,
+            )
+
         conversation = Conversation.objects.get(
             pk=conversation_pk,
             project__owner=request.user,

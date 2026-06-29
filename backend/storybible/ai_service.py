@@ -1,4 +1,5 @@
 import re
+import concurrent.futures
 
 import google.generativeai as genai
 from django.conf import settings
@@ -14,6 +15,17 @@ class AIServiceNotConfigured(Exception):
 
 class AIServiceError(Exception):
     pass
+
+
+def call_with_timeout(fn, timeout_seconds=90):
+    """Call a function with a timeout using a thread pool (thread-safe)."""
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(fn)
+        try:
+            return future.result(timeout=timeout_seconds)
+        except concurrent.futures.TimeoutError:
+            executor.shutdown(wait=False)
+            raise AIServiceError("AI request timed out. Please try again.")
 
 
 def resolve_key(user):
@@ -125,7 +137,9 @@ def get_ai_response(user, scene_id, conversation_id, new_message_content):
             HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
             HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
         }
-        response = chat.send_message(new_message_content, safety_settings=safety_settings)
+        response = call_with_timeout(
+            lambda: chat.send_message(new_message_content, safety_settings=safety_settings)
+        )
     except Exception as e:
         raise AIServiceError(str(e)) from e
 
@@ -273,7 +287,9 @@ def check_contradictions(user, scene):
             HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
             HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
         }
-        response = model.generate_content(full_prompt, safety_settings=safety_settings)
+        response = call_with_timeout(
+            lambda: model.generate_content(full_prompt, safety_settings=safety_settings)
+        )
     except Exception as e:
         raise AIServiceError(str(e)) from e
 

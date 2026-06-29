@@ -130,6 +130,10 @@ class Scene(models.Model):
 
     class Meta:
         ordering = ['order']
+        indexes = [
+            models.Index(fields=['project', 'order']),
+            models.Index(fields=['project']),
+        ]
 
 
 class SceneVersion(models.Model):
@@ -142,6 +146,9 @@ class SceneVersion(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['scene', '-created_at']),
+        ]
 
 
 class SceneNote(models.Model):
@@ -164,6 +171,9 @@ class SceneNote(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['scene', 'resolved']),
+        ]
 
 
 class UserProfile(models.Model):
@@ -201,6 +211,9 @@ class Conversation(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['project', 'scene']),
+        ]
 
 
 class Message(models.Model):
@@ -215,3 +228,6 @@ class Message(models.Model):
 
     class Meta:
         ordering = ['created_at']
+        indexes = [
+            models.Index(fields=['conversation', 'created_at']),
+        ]

@@ -10,12 +10,35 @@
     <div class="settings-card">
       <div class="settings-card-left">
         <div class="card-title q-mb-sm">AI Assistant Settings</div>
-        <div class="text-description q-mb-md">
+        <!-- <div class="text-description q-mb-md">
           By default, Writer's Draft App uses a shared free-tier Gemini API key. You can provide
           your own key for higher limits or data privacy.
-        </div>
+        </div> -->
 
         <div class="settings-ai-content">
+          <div class="wda-info-card q-mb-md">
+            <div class="info-card-header">
+              <q-icon name="key" size="sm" class="q-mr-xs" style="color: var(--wda-action)" />
+              <span>Need an API key?</span>
+            </div>
+            <div class="info-card-body">
+              Create a free Gemini API key at Google AI Studio to use your own account for higher limits and data privacy.
+            </div>
+            <q-btn
+              type="a"
+              href="https://aistudio.google.com/app/apikey"
+              target="_blank"
+              rel="noopener noreferrer"
+              flat
+              dense
+              no-caps
+              size="sm"
+              icon="open_in_new"
+              label="Get API Key"
+              style="color: var(--wda-action); padding: 0; margin-top: 8px"
+            />
+          </div>
+
           <template v-if="keyUiState === 'empty'">
             <q-input
               v-model="keyInputValue"
@@ -572,5 +595,27 @@ async function saveGoal() {
 
 .settings-ai-content {
   flex: 1;
+}
+
+.wda-info-card {
+  background: var(--wda-surface-2);
+  border: 1px solid var(--wda-border);
+  border-radius: var(--wda-radius-sm);
+  padding: 16px;
+}
+
+.info-card-header {
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--wda-text);
+  margin-bottom: 6px;
+}
+
+.info-card-body {
+  font-size: 0.85rem;
+  color: var(--wda-text-muted);
+  line-height: 1.5;
 }
 </style>

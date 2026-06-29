@@ -202,7 +202,7 @@
             <template v-else-if="scenesStore.scenes.length === 0">
               <div class="wda-scenes-panel__empty">
                 <p>No scenes yet.</p>
-                <router-link :to="`/projects/${projectsStore.selectedProjectId}/write`" style="color: #1B2A4A; font-size: 12px">
+                <router-link :to="`/projects/${projectsStore.selectedProjectId}/write`" style="color: var(--wda-action); font-size: 12px">
                   Create one in Write page
                 </router-link>
               </div>

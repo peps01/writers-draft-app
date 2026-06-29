@@ -446,7 +446,7 @@
             <div v-else class="text-center q-mt-xl" style="color: var(--wda-text-muted)">
               <q-icon name="local_offer" size="48px" class="q-mb-sm" style="opacity: 0.4" />
               <p>Add entries to your Story Bible to tag them here</p>
-              <router-link :to="`/projects/${projectId}/story-bible`" style="color: var(--wda-primary)">
+              <router-link :to="`/projects/${projectId}/story-bible`" style="color: var(--wda-action)">
                 Go to Story Bible
               </router-link>
             </div>
@@ -856,7 +856,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch, onBeforeUnmount, nextTick, shallowRef, inject } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useScenesStore } from '@/stores/scenes'
 import { useSceneVersionsStore } from '@/stores/sceneVersions'
 import { useConversationsStore } from '@/stores/conversations'
@@ -874,6 +874,7 @@ import Sortable from 'sortablejs'
 import { renderMarkdown } from '@/utils/markdown'
 
 const route = useRoute()
+const router = useRouter()
 const projectId = route.params.id
 
 const scenesStore = useScenesStore()
@@ -1006,6 +1007,17 @@ onMounted(async () => {
     loreStore.fetchLore(projectId),
   ])
   document.addEventListener('keydown', onKeydown)
+
+  // Pre-select scene from search navigation
+  if (route.query.scene) {
+    const targetSceneId = parseInt(route.query.scene)
+    watch(() => scenesStore.scenes, (newScenes) => {
+      if (newScenes.length && newScenes.find(s => s.id === targetSceneId)) {
+        scenesStore.setActiveScene(targetSceneId)
+      }
+    }, { immediate: true })
+    router.replace({ query: {} })
+  }
 })
 
 // ---- Scene list drag reorder (SortableJS) ----

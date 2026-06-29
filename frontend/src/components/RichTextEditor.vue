@@ -50,7 +50,7 @@ const editor = useEditor({
   content: sanitizedInitial,
   editable: props.editable,
   extensions: [
-    StarterKit,
+    StarterKit.configure({ underline: false }),
     Underline,
     CharacterCount,
     Placeholder.configure({ placeholder: props.placeholder }),

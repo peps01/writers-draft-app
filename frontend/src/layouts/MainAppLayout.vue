@@ -7,6 +7,7 @@
     </q-page-container>
 
     <ExportDialog
+      v-if="currentProjectId"
       v-model="showExportDialog"
       :project-id="currentProjectId"
       :project-title="currentProjectTitle"

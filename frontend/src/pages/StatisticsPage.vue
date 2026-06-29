@@ -78,7 +78,7 @@
             </div>
             <div style="display: flex; justify-content: space-between; margin-top: 4px; color: var(--wda-text-muted); font-size: 0.78rem;">
               <span>{{ Math.round(goalProgress * 100) }}% complete</span>
-              <router-link to="/settings" style="color: var(--wda-primary)">Change goal</router-link>
+              <router-link to="/settings" style="color: var(--wda-action)">Change goal</router-link>
             </div>
           </template>
         </div>
@@ -209,7 +209,7 @@ function buildChart() {
   })
 
   const primaryColor =
-    getComputedStyle(document.documentElement).getPropertyValue('--wda-primary').trim() || '#1B3A6B'
+    getComputedStyle(document.documentElement).getPropertyValue('--wda-primary').trim() || '#F4A825'
 
   chartInstance = new Chart(chartCanvas.value, {
     type: 'bar',

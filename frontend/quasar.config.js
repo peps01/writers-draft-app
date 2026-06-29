@@ -33,8 +33,7 @@ export default defineConfig((/* ctx */) => {
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#build
     build: {
       target: {
-        // browser: 'baseline-widely-available',
-        // node: 'node22'
+        browser: ['es2019', 'edge88', 'firefox78', 'chrome87', 'safari13.1'],
       },
 
       // https://v2.quasar.dev/quasar-cli-vite/page-routing-with-vue-router#filename-based-routing
@@ -50,6 +49,7 @@ export default defineConfig((/* ctx */) => {
       // ignorePublicFolder: true,
       // minify: false,
       // distDir
+      sourcemap: false,
 
       // extendViteConf (viteConf) {},
       // viteVuePluginOptions: {},

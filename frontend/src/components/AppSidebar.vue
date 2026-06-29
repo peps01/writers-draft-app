@@ -9,8 +9,8 @@
   >
     <div class="wda-sidebar-inner">
       <div class="wda-sidebar-header">
-        <div class="wda-logo-badge">W</div>
-        <span class="wda-sidebar-header-label">Dashboard</span>
+        <div class="wda-logo-badge">{{ authStore.user?.username?.charAt(0)?.toUpperCase() || '?' }}</div>
+        <span class="wda-sidebar-header-label">{{ authStore.user?.username || 'User' }}</span>
       </div>
 
       <div class="wda-sidebar-nav">
@@ -39,11 +39,13 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 import { useProjectsStore } from '@/stores/projects'
 
 const route = useRoute()
 const router = useRouter()
 const projectsStore = useProjectsStore()
+const authStore = useAuthStore()
 
 const projectId = computed(() => route.params.id || projectsStore.selectedProjectId || null)
 

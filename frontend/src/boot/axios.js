@@ -2,7 +2,7 @@ import { boot } from 'quasar/wrappers'
 import axios from 'axios'
 
 const api = axios.create({
-  baseURL: 'http://localhost:8000/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api',
   withCredentials: true,
 })
 
@@ -20,6 +20,23 @@ api.interceptors.request.use((config) => {
   }
   return config
 })
+
+api.interceptors.response.use(
+  response => response,
+  error => {
+    if (error.response?.status === 401) {
+      import('../stores/auth').then(({ useAuthStore }) => {
+        const authStore = useAuthStore()
+        authStore.user = null
+        window.location.href = '/#/login'
+      })
+    }
+    if (!error.response) {
+      console.error('Network error:', error.message)
+    }
+    return Promise.reject(error)
+  }
+)
 
 export default boot(({ app }) => {
   app.config.globalProperties.$axios = axios
