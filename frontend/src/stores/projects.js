@@ -49,7 +49,8 @@ export const useProjectsStore = defineStore('projects', () => {
       return data
     } catch (err) {
       error.value =
-        err.response?.data?.title?.[0] || err.response?.data?.detail || 'Failed to create project.'
+        err.response?.data?.title?.[0] || err.response?.data?.detail ||
+        (err.response ? 'Failed to create project.' : 'Server is starting up, please try again.')
       throw err
     }
   }
@@ -67,7 +68,8 @@ export const useProjectsStore = defineStore('projects', () => {
       return data
     } catch (err) {
       error.value =
-        err.response?.data?.title?.[0] || err.response?.data?.detail || 'Failed to update project.'
+        err.response?.data?.title?.[0] || err.response?.data?.detail ||
+        (err.response ? 'Failed to update project.' : 'Server is starting up, please try again.')
       throw err
     }
   }

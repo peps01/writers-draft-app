@@ -28,13 +28,22 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   response => response,
-  error => {
+  async error => {
+    if (!error.response && !error.config._retryCount) {
+      error.config._retryCount = (error.config._retryCount || 0) + 1
+      if (error.config._retryCount <= 3) {
+        await new Promise(r => setTimeout(r, 3000 * error.config._retryCount))
+        if (!csrfToken) {
+          await fetchCsrfToken()
+        }
+        return api(error.config)
+      }
+    }
     if (error.response?.status === 401) {
-      import('../stores/auth').then(({ useAuthStore }) => {
-        const authStore = useAuthStore()
-        authStore.user = null
-        window.location.href = '/#/login'
-      })
+      const { useAuthStore } = await import('../stores/auth')
+      const authStore = useAuthStore()
+      authStore.user = null
+      window.location.href = '/#/login'
     }
     if (!error.response) {
       console.error('Network error:', error.message)
