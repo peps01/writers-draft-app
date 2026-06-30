@@ -5,5 +5,7 @@ echo "Running migrations..."
 python manage.py migrate --noinput 2>&1
 echo "Collecting static files..."
 python manage.py collectstatic --noinput 2>&1
+echo "Ensuring admin user exists..."
+python manage.py ensure_admin 2>&1
 echo "Starting server..."
 exec gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120
