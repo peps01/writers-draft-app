@@ -8,19 +8,17 @@
             <p class="auth-tagline">Your story. Your world. All in one place.</p>
           </div>
           <div class="auth-form-card" style="background:var(--wda-surface);border:1px solid var(--wda-border);border-radius:var(--wda-radius);box-shadow:var(--wda-shadow);text-align:center;">
-            <div v-if="loading"><q-spinner size="lg" color="primary" /></div>
-            <template v-else-if="verified">
-              <div style="font-size:48px;margin-bottom:16px;">✅</div>
-              <div style="font-family:var(--wda-font-heading);font-size:1.5rem;font-weight:700;color:var(--wda-text);margin-bottom:8px;">Email verified!</div>
-              <div style="font-family:var(--wda-font-ui);font-size:0.9rem;color:var(--wda-text-muted);margin-bottom:24px;">Redirecting to login in {{ countdown }}s...</div>
-              <q-btn unelevated color="primary" label="Log in now" no-caps :to="'/login'" />
-            </template>
+            <div v-if="!errorMsg">
+              <div style="font-size:48px;margin-bottom:16px;">❌</div>
+              <div style="font-family:var(--wda-font-heading);font-size:1.5rem;font-weight:700;color:var(--wda-text);margin-bottom:8px;">Verification failed</div>
+              <div style="font-family:var(--wda-font-ui);font-size:0.9rem;color:var(--wda-text-muted);margin-bottom:24px;">No verification data found.</div>
+            </div>
             <template v-else>
               <div style="font-size:48px;margin-bottom:16px;">❌</div>
-              <div style="font-family:var(--wda-font-heading);font-size:1.5rem;font-weight:700;color:var(--wda-text);margin-bottom:8px;">Invalid or expired link</div>
+              <div style="font-family:var(--wda-font-heading);font-size:1.5rem;font-weight:700;color:var(--wda-text);margin-bottom:8px;">{{ title }}</div>
               <div style="font-family:var(--wda-font-ui);font-size:0.9rem;color:var(--wda-text-muted);margin-bottom:24px;">{{ errorMsg }}</div>
-              <q-btn flat color="primary" label="Go to login" no-caps to="/login" />
             </template>
+            <q-btn flat color="primary" label="Go to login" no-caps to="/login" />
           </div>
         </div>
         <div style="position:fixed;top:16px;right:16px;z-index:9999">
@@ -32,40 +30,20 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { api } from '@/boot/axios'
+import { ref } from 'vue'
+import { useRoute } from 'vue-router'
 
 const route = useRoute()
-const router = useRouter()
-const loading = ref(true)
-const verified = ref(false)
-const errorMsg = ref('')
-const countdown = ref(5)
 
-async function verify() {
-  const token = route.query.token
-  if (!token) {
-    loading.value = false
-    errorMsg.value = 'Missing verification token.'
-    return
-  }
-  try {
-    await api.get('/auth/verify-email/', { params: { token } })
-    verified.value = true
-    const timer = setInterval(() => {
-      countdown.value--
-      if (countdown.value <= 0) {
-        clearInterval(timer)
-        router.push('/login')
-      }
-    }, 1000)
-  } catch (err) {
-    errorMsg.value = err.response?.data?.error || 'Verification failed.'
-  } finally {
-    loading.value = false
-  }
+const errorMap = {
+  missing_token: { title: 'Invalid link', msg: 'No verification token provided.' },
+  expired: { title: 'Link expired', msg: 'This verification link has expired. Request a new one from the login page.' },
+  invalid: { title: 'Invalid link', msg: 'This verification link is not valid.' },
+  not_found: { title: 'User not found', msg: 'No account found for this verification link.' },
 }
 
-onMounted(verify)
+const error = route.query.error
+const errorData = errorMap[error] || null
+const errorMsg = ref(errorData ? errorData.msg : (error ? 'Unknown error.' : ''))
+const title = ref(errorData ? errorData.title : 'Verification failed')
 </script>

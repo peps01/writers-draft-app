@@ -16,6 +16,7 @@ from django.core.validators import EmailValidator
 from django.db.models import Q
 from django.http import FileResponse
 from django.middleware.csrf import get_token
+from django.shortcuts import redirect
 from django.template.loader import render_to_string
 from django.utils.decorators import method_decorator
 from django_ratelimit.core import is_ratelimited
@@ -808,7 +809,7 @@ def register_view(request):
         signer = TimestampSigner(salt=settings.SIGNING_SALT)
         token = signer.sign(user.pk)
 
-        verify_url = f"{settings.FRONTEND_URL}/verify-email/?token={token}"
+        verify_url = f"{request.scheme}://{request.get_host()}/api/auth/verify-email/?token={token}"
 
         if settings.RESEND_API_KEY:
             html_body = render_to_string('emails/verify_email.html', {
@@ -848,28 +849,31 @@ def register_view(request):
 def verify_email_view(request):
     token = request.query_params.get('token')
     if not token:
-        return Response({'error': 'Verification token is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        return redirect(f"{settings.FRONTEND_URL}/verify-email?error=missing_token")
 
     try:
         signer = TimestampSigner(salt=settings.SIGNING_SALT)
         user_pk = signer.unsign(token, max_age=settings.SIGNING_MAX_AGE)
     except SignatureExpired:
-        return Response({'error': 'Verification link has expired.', 'expired': True}, status=status.HTTP_400_BAD_REQUEST)
+        return redirect(f"{settings.FRONTEND_URL}/verify-email?error=expired")
     except BadSignature:
-        return Response({'error': 'Invalid verification link.'}, status=status.HTTP_400_BAD_REQUEST)
+        return redirect(f"{settings.FRONTEND_URL}/verify-email?error=invalid")
 
     User = get_user_model()
     try:
         user = User.objects.get(pk=user_pk)
     except User.DoesNotExist:
-        return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+        return redirect(f"{settings.FRONTEND_URL}/verify-email?error=not_found")
 
     if user.profile.is_email_verified:
-        return Response({'message': 'Email already verified.'})
+        return redirect(f"{settings.FRONTEND_URL}/dashboard")
 
     user.profile.is_email_verified = True
     user.profile.save()
-    return Response({'message': 'Email verified successfully! You can now log in.'})
+
+    login(request, user)
+
+    return redirect(f"{settings.FRONTEND_URL}/dashboard")
 
 
 @api_view(['POST'])
@@ -891,7 +895,7 @@ def resend_verification_view(request):
     try:
         signer = TimestampSigner(salt=settings.SIGNING_SALT)
         token = signer.sign(user.pk)
-        verify_url = f"{settings.FRONTEND_URL}/verify-email/?token={token}"
+        verify_url = f"{request.scheme}://{request.get_host()}/api/auth/verify-email/?token={token}"
 
         html_body = render_to_string('emails/verify_email.html', {
             'username': user.username,
