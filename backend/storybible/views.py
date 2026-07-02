@@ -25,7 +25,7 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 
-from .models import Project, Character, Place, TimelineEvent, Group, Item, Lore, Scene, SceneNote, SceneVersion, Conversation, Message
+from .models import Project, Character, Place, TimelineEvent, Group, Item, Lore, Scene, SceneNote, SceneVersion, Conversation, Message, UserProfile
 from .serializers import (
     ProjectSerializer,
     CharacterSerializer,
