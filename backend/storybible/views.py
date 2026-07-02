@@ -8,7 +8,8 @@ from google.generativeai.types import HarmCategory, HarmBlockThreshold
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.validators import EmailValidator
 from django.db.models import Q
 from django.http import FileResponse
 from django.middleware.csrf import get_token
@@ -744,6 +745,20 @@ def register_view(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+    if not email:
+        return Response(
+            {'error': 'Email is required.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        EmailValidator()(email)
+    except DjangoValidationError:
+        return Response(
+            {'error': 'Enter a valid email address.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
     User = get_user_model()
 
     if User.objects.filter(username=username).exists():
@@ -752,9 +767,15 @@ def register_view(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+    if User.objects.filter(email=email).exists():
+        return Response(
+            {'error': 'An account with this email already exists.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
     try:
         validate_password(password)
-    except ValidationError as e:
+    except DjangoValidationError as e:
         return Response(
             {'error': e.messages},
             status=status.HTTP_400_BAD_REQUEST,

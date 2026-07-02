@@ -55,6 +55,11 @@
                 color="primary"
                 autocomplete="email"
                 :disable="submitting"
+                lazy-rules
+                :rules="[
+                  val => !!val || 'Email is required.',
+                  val => /.+@.+\..+/.test(val) || 'Enter a valid email address.',
+                ]"
               />
               <q-input
                 v-model="password"

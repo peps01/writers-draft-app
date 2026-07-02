@@ -40,3 +40,4 @@ media/
 frontend/dist_old/
 frontend/dist_backup/
 frontend/.quasar_old/
+session-ses_*.md
