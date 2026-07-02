@@ -27,7 +27,11 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function logout() {
-    await api.post('/auth/logout/')
+    try {
+      await api.post('/auth/logout/')
+    } catch {
+      // Log out locally even if the server is unreachable
+    }
     user.value = null
     await fetchCsrfToken()
   }
