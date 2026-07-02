@@ -129,8 +129,8 @@ async function onSubmit() {
   error.value = ''
   submitting.value = true
   try {
-    await authStore.register(username.value, email.value, password.value)
-    router.push('/dashboard')
+    const data = await authStore.register(username.value, email.value, password.value)
+    router.push(`/verification-sent?email=${encodeURIComponent(data.email)}`)
   } catch (err) {
     const data = err.response?.data
     if (data?.error) {

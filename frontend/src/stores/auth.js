@@ -22,8 +22,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function register(username, email, password) {
     const { data } = await api.post('/auth/register/', { username, email, password })
-    user.value = data
-    await fetchCsrfToken()
+    return data
   }
 
   async function logout() {

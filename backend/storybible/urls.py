@@ -34,6 +34,8 @@ auth_urls = [
     path('auth/logout/', views.logout_view, name='auth-logout'),
     path('auth/user/', views.user_view, name='auth-user'),
     path('auth/register/', views.register_view, name='auth-register'),
+    path('auth/verify-email/', views.verify_email_view, name='auth-verify-email'),
+    path('auth/resend-verification/', views.resend_verification_view, name='auth-resend-verification'),
     path('auth/profile/', views.profile_view, name='auth-profile'),
     path('auth/profile/test-key/', views.test_key_view, name='auth-profile-test-key'),
 ]

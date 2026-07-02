@@ -184,6 +184,7 @@ class UserProfile(models.Model):
         related_name='profile',
     )
     gemini_api_key = models.CharField(max_length=200, blank=True, default='')
+    is_email_verified = models.BooleanField(default=False)
     is_paid_tier = models.BooleanField(default=False)
     daily_word_goal = models.PositiveIntegerField(null=True, blank=True, default=None)
     show_word_goal = models.BooleanField(default=False)

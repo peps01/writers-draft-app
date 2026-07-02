@@ -59,6 +59,9 @@
 
               <q-banner v-if="error" class="bg-negative text-white q-mb-md" rounded>
                 {{ error }}
+                <template v-if="showResend" #action>
+                  <q-btn flat label="Resend email" no-caps @click="resendVerification" :disable="resending" />
+                </template>
               </q-banner>
 
               <q-btn
@@ -101,6 +104,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { api } from '@/boot/axios'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -109,17 +113,41 @@ const username = ref('')
 const password = ref('')
 const error = ref('')
 const submitting = ref(false)
+const showResend = ref(false)
+const resendEmail = ref('')
+const resending = ref(false)
 
 async function onSubmit() {
   error.value = ''
+  showResend.value = false
   submitting.value = true
   try {
     await authStore.login(username.value, password.value)
     router.push('/dashboard')
   } catch (err) {
-    error.value = err.response?.data?.error || 'Login failed. Please try again.'
+    const data = err.response?.data
+    if (data?.needs_verification && data?.email) {
+      error.value = 'Please verify your email before logging in.'
+      showResend.value = true
+      resendEmail.value = data.email
+    } else {
+      error.value = data?.error || 'Login failed. Please try again.'
+    }
   } finally {
     submitting.value = false
+  }
+}
+
+async function resendVerification() {
+  resending.value = true
+  try {
+    await api.post('/auth/resend-verification/', { email: resendEmail.value })
+    error.value = 'Verification email sent! Check your inbox.'
+    showResend.value = false
+  } catch {
+    error.value = 'Failed to resend. Try again later.'
+  } finally {
+    resending.value = false
   }
 }
 </script>

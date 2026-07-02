@@ -17,6 +17,18 @@ const routes = [
   },
 
   {
+    path: '/verification-sent',
+    component: () => import('@/pages/VerificationSentPage.vue'),
+    meta: { guest: true },
+  },
+
+  {
+    path: '/verify-email',
+    component: () => import('@/pages/VerifyEmailPage.vue'),
+    meta: { guest: true },
+  },
+
+  {
     path: '/',
     component: () => import('@/layouts/MainAppLayout.vue'),
     children: [

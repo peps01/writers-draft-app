@@ -27,6 +27,7 @@ env = environ.Env(
     SUPABASE_S3_ACCESS_KEY=(str, ''),
     SUPABASE_S3_SECRET_KEY=(str, ''),
     SUPABASE_PROJECT_ID=(str, ''),
+    RESEND_API_KEY=(str, ''),
 )
 
 environ.Env.read_env(BASE_DIR / '.env')
@@ -56,6 +57,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'storages',
+    'anymail',
     'storybible',
 ]
 
@@ -210,6 +212,19 @@ if SUPABASE_S3_ACCESS_KEY and SUPABASE_S3_SECRET_KEY and SUPABASE_PROJECT_ID:
     AWS_QUERYSTRING_AUTH = False
 
     DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+
+
+# Email — Resend via Anymail
+RESEND_API_KEY = env('RESEND_API_KEY')
+if RESEND_API_KEY:
+    EMAIL_BACKEND = 'anymail.backends.resend.EmailBackend'
+    ANYMAIL = {'RESEND_API_KEY': RESEND_API_KEY}
+    DEFAULT_FROM_EMAIL = 'Writer\'s Draft <noreply@resend.dev>'
+
+
+# Signing — used for email verification tokens
+SIGNING_SALT = env('SIGNING_SALT', default='email-verify')
+SIGNING_MAX_AGE = 60 * 60 * 24  # 24 hours
 
 
 # Default primary key field type

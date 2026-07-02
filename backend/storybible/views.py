@@ -2,17 +2,21 @@ import re
 from datetime import date, timedelta
 from collections import defaultdict
 
+import dns.resolver
 import google.generativeai as genai
 from google.generativeai.types import HarmCategory, HarmBlockThreshold
 
+from django.conf import settings
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.signing import TimestampSigner, SignatureExpired, BadSignature
 from django.core.validators import EmailValidator
 from django.db.models import Q
 from django.http import FileResponse
 from django.middleware.csrf import get_token
+from django.template.loader import render_to_string
 from django.utils.decorators import method_decorator
 from django_ratelimit.core import is_ratelimited
 from rest_framework import viewsets, status
@@ -725,6 +729,11 @@ def login_view(request):
             {'error': 'Invalid username or password.'},
             status=status.HTTP_400_BAD_REQUEST,
         )
+    if not user.profile.is_email_verified:
+        return Response(
+            {'error': 'Please verify your email before logging in.', 'needs_verification': True, 'email': user.email},
+            status=status.HTTP_403_FORBIDDEN,
+        )
     login(request, user)
     return Response({
         'id': user.id,
@@ -759,6 +768,15 @@ def register_view(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+    domain = email.split('@')[1].lower()
+    try:
+        dns.resolver.resolve(domain, 'MX')
+    except Exception:
+        return Response(
+            {'error': 'Enter a valid email address.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
     User = get_user_model()
 
     if User.objects.filter(username=username).exists():
@@ -783,17 +801,31 @@ def register_view(request):
 
     try:
         user = User.objects.create_user(username=username, email=email, password=password)
-        login(request, user)
-        return Response(
-            {
-                'id': user.id,
+        user.profile.is_email_verified = False
+        user.profile.save()
+
+        signer = TimestampSigner(salt=settings.SIGNING_SALT)
+        token = signer.sign(user.pk)
+
+        verify_url = f"{request.scheme}://{request.get_host()}/api/auth/verify-email/?token={token}"
+
+        if settings.RESEND_API_KEY:
+            html_body = render_to_string('emails/verify_email.html', {
                 'username': user.username,
-                'email': user.email,
-                'has_gemini_key': bool(user.profile.gemini_api_key),
-                'is_paid_tier': user.profile.is_paid_tier,
-                'daily_word_goal': user.profile.daily_word_goal,
-                'show_word_goal': user.profile.show_word_goal,
-            },
+                'verify_url': verify_url,
+            })
+            text_body = f'Welcome to Writer\'s Draft!\n\nPlease verify your email by clicking:\n{verify_url}'
+            from anymail.message import AnymailMessage
+            msg = AnymailMessage(
+                subject='Verify your email — Writer\'s Draft',
+                body=text_body,
+                to=[user.email],
+            )
+            msg.attach_alternative(html_body, 'text/html')
+            msg.send()
+
+        return Response(
+            {'message': 'Check your email to verify your account.', 'email': user.email},
             status=status.HTTP_201_CREATED,
         )
     except Exception as e:
@@ -801,6 +833,75 @@ def register_view(request):
             {'error': str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def verify_email_view(request):
+    token = request.query_params.get('token')
+    if not token:
+        return Response({'error': 'Verification token is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        signer = TimestampSigner(salt=settings.SIGNING_SALT)
+        user_pk = signer.unsign(token, max_age=settings.SIGNING_MAX_AGE)
+    except SignatureExpired:
+        return Response({'error': 'Verification link has expired.', 'expired': True}, status=status.HTTP_400_BAD_REQUEST)
+    except BadSignature:
+        return Response({'error': 'Invalid verification link.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    User = get_user_model()
+    try:
+        user = User.objects.get(pk=user_pk)
+    except User.DoesNotExist:
+        return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+    if user.profile.is_email_verified:
+        return Response({'message': 'Email already verified.'})
+
+    user.profile.is_email_verified = True
+    user.profile.save()
+    return Response({'message': 'Email verified successfully! You can now log in.'})
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def resend_verification_view(request):
+    email = request.data.get('email')
+    if not email:
+        return Response({'error': 'Email is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    User = get_user_model()
+    try:
+        user = User.objects.get(email=email)
+    except User.DoesNotExist:
+        return Response({'error': 'No account found with this email.'}, status=status.HTTP_404_NOT_FOUND)
+
+    if user.profile.is_email_verified:
+        return Response({'message': 'Email already verified.'})
+
+    try:
+        signer = TimestampSigner(salt=settings.SIGNING_SALT)
+        token = signer.sign(user.pk)
+        verify_url = f"{request.scheme}://{request.get_host()}/api/auth/verify-email/?token={token}"
+
+        html_body = render_to_string('emails/verify_email.html', {
+            'username': user.username,
+            'verify_url': verify_url,
+        })
+        text_body = f'Welcome to Writer\'s Draft!\n\nPlease verify your email by clicking:\n{verify_url}'
+        from anymail.message import AnymailMessage
+        msg = AnymailMessage(
+            subject='Verify your email — Writer\'s Draft',
+            body=text_body,
+            to=[user.email],
+        )
+        msg.attach_alternative(html_body, 'text/html')
+        msg.send()
+
+        return Response({'message': 'Verification email sent.'})
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['POST'])
