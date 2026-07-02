@@ -28,6 +28,7 @@ env = environ.Env(
     SUPABASE_S3_SECRET_KEY=(str, ''),
     SUPABASE_PROJECT_ID=(str, ''),
     RESEND_API_KEY=(str, ''),
+    FRONTEND_URL=(str, 'http://localhost:9000'),
 )
 
 environ.Env.read_env(BASE_DIR / '.env')
@@ -225,6 +226,7 @@ if RESEND_API_KEY:
 # Signing — used for email verification tokens
 SIGNING_SALT = env('SIGNING_SALT', default='email-verify')
 SIGNING_MAX_AGE = 60 * 60 * 24  # 24 hours
+FRONTEND_URL = env('FRONTEND_URL').rstrip('/')
 
 
 # Default primary key field type

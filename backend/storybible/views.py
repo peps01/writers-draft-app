@@ -801,13 +801,14 @@ def register_view(request):
 
     try:
         user = User.objects.create_user(username=username, email=email, password=password)
-        user.profile.is_email_verified = False
-        user.profile.save()
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+        profile.is_email_verified = False
+        profile.save()
 
         signer = TimestampSigner(salt=settings.SIGNING_SALT)
         token = signer.sign(user.pk)
 
-        verify_url = f"{request.scheme}://{request.get_host()}/api/auth/verify-email/?token={token}"
+        verify_url = f"{settings.FRONTEND_URL}/verify-email/?token={token}"
 
         if settings.RESEND_API_KEY:
             html_body = render_to_string('emails/verify_email.html', {
@@ -822,7 +823,14 @@ def register_view(request):
                 to=[user.email],
             )
             msg.attach_alternative(html_body, 'text/html')
-            msg.send()
+            try:
+                msg.send()
+            except Exception:
+                user.delete()
+                return Response(
+                    {'error': 'Could not send verification email to that address. Please use a different email.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         return Response(
             {'message': 'Check your email to verify your account.', 'email': user.email},
@@ -883,7 +891,7 @@ def resend_verification_view(request):
     try:
         signer = TimestampSigner(salt=settings.SIGNING_SALT)
         token = signer.sign(user.pk)
-        verify_url = f"{request.scheme}://{request.get_host()}/api/auth/verify-email/?token={token}"
+        verify_url = f"{settings.FRONTEND_URL}/verify-email/?token={token}"
 
         html_body = render_to_string('emails/verify_email.html', {
             'username': user.username,
@@ -901,7 +909,10 @@ def resend_verification_view(request):
 
         return Response({'message': 'Verification email sent.'})
     except Exception as e:
-        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Failed to resend verification email to {user.email}: {e}")
+        return Response({'error': 'Could not send verification email. The address may be invalid or the email service is unavailable.'}, status=status.HTTP_502_BAD_GATEWAY)
 
 
 @api_view(['POST'])
