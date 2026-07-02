@@ -24,6 +24,9 @@ env = environ.Env(
     SECURE_HSTS_INCLUDE_SUBDOMAINS=(bool, False),
     SESSION_COOKIE_SECURE=(bool, False),
     CSRF_COOKIE_SECURE=(bool, False),
+    SUPABASE_S3_ACCESS_KEY=(str, ''),
+    SUPABASE_S3_SECRET_KEY=(str, ''),
+    SUPABASE_PROJECT_ID=(str, ''),
 )
 
 environ.Env.read_env(BASE_DIR / '.env')
@@ -52,6 +55,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'corsheaders',
+    'storages',
     'storybible',
 ]
 
@@ -186,6 +190,27 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+
+# Supabase S3-compatible storage for uploaded images
+SUPABASE_S3_ACCESS_KEY = env('SUPABASE_S3_ACCESS_KEY', default='')
+SUPABASE_S3_SECRET_KEY = env('SUPABASE_S3_SECRET_KEY', default='')
+SUPABASE_PROJECT_ID = env('SUPABASE_PROJECT_ID', default='')
+
+if SUPABASE_S3_ACCESS_KEY and SUPABASE_S3_SECRET_KEY and SUPABASE_PROJECT_ID:
+    AWS_ACCESS_KEY_ID = SUPABASE_S3_ACCESS_KEY
+    AWS_SECRET_ACCESS_KEY = SUPABASE_S3_SECRET_KEY
+    AWS_STORAGE_BUCKET_NAME = 'writers-draft-covers'
+    AWS_S3_ENDPOINT_URL = f'https://{SUPABASE_PROJECT_ID}.supabase.co/storage/v1/s3'
+    AWS_S3_REGION_NAME = 'us-east-1'
+    AWS_S3_ADDRESSING_STYLE = 'path'
+    AWS_S3_SIGNATURE_VERSION = 's3v4'
+    AWS_DEFAULT_ACL = 'public-read'
+    AWS_S3_CUSTOM_DOMAIN = f'{SUPABASE_PROJECT_ID}.supabase.co/storage/v1/object/public/writers-draft-covers'
+    AWS_QUERYSTRING_AUTH = False
+
+    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
